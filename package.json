@@ -13,6 +13,9 @@
     "ocr",
     "tesseract"
   ],
+  "publishConfig": {
+    "registry": "http://registry.npmjs.com"
+  },
   "dependencies": {
     "node-cmake": "^1.1.0"
   },
