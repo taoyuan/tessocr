@@ -6,16 +6,13 @@ var tessocr = require('../..');
 var fs = require('fs');
 var path = require('path');
 
+var tess = tessocr.tess();
+
+console.log(tess);
+
 var image = process.argv[2] || path.join(__dirname, 'HelloWorld.jpg');
 
-fs.readFile(image, function (err, data) {
-  if (err) {
-    throw err;
-  }
-  console.log(require('util').inspect(data));
-  tessocr.ocr(data, function(err, result){
-    if(err)
-      throw err;
-    console.log(result);
-  });
+tess.ocr(image, function (err, result) {
+  if (err) throw err;
+  console.log(result);
 });

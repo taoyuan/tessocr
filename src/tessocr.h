@@ -22,6 +22,7 @@ struct TessocrBaton {
   char* textresult;
   int* rect;
   Nan::Callback *callback;
+  char path[1024];
   Nan::Persistent<Object> buffer;
   unsigned char *data;
   size_t length;

@@ -8,7 +8,7 @@
     "email": "towyuan@outlook.com",
     "url": ""
   },
-  "main": "index.js",
+  "main": "tessocr.js",
   "keywords": [
     "ocr",
     "tesseract"

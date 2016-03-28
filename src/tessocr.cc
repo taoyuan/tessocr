@@ -16,9 +16,9 @@ using namespace v8;
 Nan::Persistent<FunctionTemplate> Tessocr::constructor_template;
 
 Local<Value> ocr_error(int code) {
-	Local<Value> e  = Nan::Error(Nan::New<String>("Error").ToLocalChecked());
-	e->ToObject()->Set(Nan::New<String>("code").ToLocalChecked(), Nan::New<Integer>(code));
-	return e;
+  Local<Value> e = Nan::Error(Nan::New<String>("Tessocr throws an error").ToLocalChecked());
+  e->ToObject()->Set(Nan::New<String>("code").ToLocalChecked(), Nan::New<Integer>(code));
+  return e;
 }
 
 void __eio_ocr(uv_work_t *req) {
@@ -26,7 +26,14 @@ void __eio_ocr(uv_work_t *req) {
   tesseract::TessBaseAPI api;
   int r = api.Init(baton->tessdata, baton->language, tesseract::OEM_DEFAULT, NULL, 0, NULL, NULL, false);
   if (r == 0) {
-    PIX *pix = pixReadMem(baton->data, baton->length);
+    PIX *pix = NULL;
+    if (baton->data) {
+      DEBUG_LOG("Reading image from buffer (%d bytes)", baton->length);
+      pix = pixReadMem(baton->data, baton->length);
+    } else {
+      DEBUG_LOG("Reading image from %s", baton->path);
+      pix = pixRead(baton->path);
+    }
     if (pix) {
       api.SetImage(pix);
       if (baton->rect) {
@@ -60,7 +67,7 @@ void __eio_ocr_done(uv_work_t *req, int status) {
         error = ocr_error(baton->errcode);
       }
 
-      Local<Value> argv[] = {error,  Nan::New<String>(baton->textresult, strlen(baton->textresult)).ToLocalChecked()};
+      Local<Value> argv[] = {error, Nan::New<String>(baton->textresult, strlen(baton->textresult)).ToLocalChecked()};
 
       DEBUG_LOG("call ocr callback");
       Nan::TryCatch try_catch;
@@ -97,12 +104,21 @@ NAN_METHOD(Tessocr::New) {
 NAN_METHOD(Tessocr::Ocr) {
   ENTER_METHOD(Tessocr, 3);
 
-  if (!Buffer::HasInstance(info[0])) {
-    THROW_BAD_ARGS("Argument 0 must be a buffer");
+  Local<Object> buffer;
+  unsigned char *data = NULL;
+  size_t length = 0;
+  char *path = NULL;
+
+  if (info[0]->IsString()) {
+    String::Utf8Value str(info[0]->ToString());
+    path = *str;
+  } else if (Buffer::HasInstance(info[0])) {
+    buffer = info[0]->ToObject();
+    data = (unsigned char *) node::Buffer::Data(buffer);
+    length = (size_t) node::Buffer::Length(buffer);
+  } else {
+    THROW_BAD_ARGS("Argument 0 must be a buffer or string");
   }
-  Local<Object> buffer = info[0]->ToObject();
-  unsigned char *data = (unsigned char *) node::Buffer::Data(buffer);
-  size_t length = (size_t) node::Buffer::Length(buffer);
 
   if (!info[1]->IsObject()) {
     THROW_BAD_ARGS("Argument 1 must be a object");
@@ -163,10 +179,15 @@ NAN_METHOD(Tessocr::Ocr) {
     baton->tessdata = strdup("/usr/local/share/tessdata/");
   }
 
+  if (path) {
+    strcpy(baton->path, path);
+  } else {
+    baton->buffer.Reset(buffer);
+    baton->data = data;
+    baton->length = length;
+  }
+
   baton->callback = new Nan::Callback(callback);
-  baton->buffer.Reset(buffer);
-  baton->data = data;
-  baton->length = length;
 
   uv_work_t *req = new uv_work_t;
   req->data = baton;
