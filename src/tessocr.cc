@@ -15,6 +15,12 @@ using namespace v8;
 
 Nan::Persistent<FunctionTemplate> Tessocr::constructor_template;
 
+Local<Value> ocr_error(int code) {
+	Local<Value> e  = Nan::Error(Nan::New<String>("Error").ToLocalChecked());
+	e->ToObject()->Set(Nan::New<String>("code").ToLocalChecked(), Nan::New<Integer>(code));
+	return e;
+}
+
 void __eio_ocr(uv_work_t *req) {
   TessocrBaton *baton = static_cast<TessocrBaton *>(req->data);
   tesseract::TessBaseAPI api;
@@ -31,11 +37,11 @@ void __eio_ocr(uv_work_t *req) {
       pixDestroy(&pix);
     }
     else {
-      baton->error = 2;
+      baton->errcode = 2;
     }
   }
   else {
-    baton->error = r;
+    baton->errcode = r;
   }
 }
 
@@ -48,21 +54,26 @@ void __eio_ocr_done(uv_work_t *req, int status) {
   } else {
     DEBUG_LOG("OCR done");
 
-    Local<Value> argv[2];
+    if (!baton->callback->IsEmpty()) {
+      Local<Value> error = Nan::Undefined();
+      if (baton->errcode != 0) {
+        error = ocr_error(baton->errcode);
+      }
 
-    argv[0] = Nan::New(baton->error + status);
-    argv[1] = Nan::New<String>(baton->textresult, strlen(baton->textresult)).ToLocalChecked();
+      Local<Value> argv[] = {error,  Nan::New<String>(baton->textresult, strlen(baton->textresult)).ToLocalChecked()};
 
-    Nan::TryCatch try_catch;
-
-    baton->callback->Call(2, argv);
-
-    if (try_catch.HasCaught()) {
-      Nan::FatalException(try_catch);
+      DEBUG_LOG("call ocr callback");
+      Nan::TryCatch try_catch;
+      baton->callback->Call(2, argv);
+      if (try_catch.HasCaught()) {
+        Nan::FatalException(try_catch);
+      }
     }
   }
 
   baton->reset();
+  delete baton;
+  delete req;
 }
 
 Tessocr::Tessocr() {
@@ -71,15 +82,12 @@ Tessocr::Tessocr() {
 
 Tessocr::~Tessocr() {
   DEBUG_LOG("Freed Tessocr %p", this);
-  baton.destory();
 }
 
 NAN_METHOD(Tessocr::New) {
   ENTER_CONSTRUCTOR(0);
 
   Tessocr *t = new Tessocr();
-
-  memset(&t->baton, 0, sizeof(TessocrBaton));
 
   t->Wrap(info.This());
   t->This.Reset(info.This());
@@ -88,10 +96,6 @@ NAN_METHOD(Tessocr::New) {
 
 NAN_METHOD(Tessocr::Ocr) {
   ENTER_METHOD(Tessocr, 3);
-
-    if (that->baton.req) {
-      THROW_ERROR("Tessocr is already active");
-    }
 
   if (!Buffer::HasInstance(info[0])) {
     THROW_BAD_ARGS("Argument 0 must be a buffer");
@@ -141,32 +145,31 @@ NAN_METHOD(Tessocr::Ocr) {
 
   CALLBACK_ARG(2);
 
-  TessocrBaton &baton = that->baton;
-  baton.tessocr = that;
-  baton.error = 0;
-  baton.textresult = NULL;
-  baton.rect = rect;
+  TessocrBaton *baton = new TessocrBaton();
+  memset(baton, 0, sizeof(TessocrBaton));
+  baton->errcode = 0;
+  baton->textresult = NULL;
+  baton->rect = rect;
 
   if (language) {
-    baton.language = language;
+    baton->language = language;
   } else {
-    baton.language = strdup("eng");
+    baton->language = strdup("eng");
   }
 
   if (tessdata) {
-    baton.tessdata = tessdata;
+    baton->tessdata = tessdata;
   } else {
-    baton.tessdata = strdup("/usr/local/share/tessdata/");
+    baton->tessdata = strdup("/usr/local/share/tessdata/");
   }
 
-  baton.callback = new Nan::Callback(callback);
-  baton.buffer.Reset(buffer);
-  baton.data = data;
-  baton.length = length;
+  baton->callback = new Nan::Callback(callback);
+  baton->buffer.Reset(buffer);
+  baton->data = data;
+  baton->length = length;
 
   uv_work_t *req = new uv_work_t;
-  req->data = &baton;
-  baton.req = req;
+  req->data = baton;
 
   uv_queue_work(uv_default_loop(), req, __eio_ocr, __eio_ocr_done);
 

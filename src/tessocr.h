@@ -16,8 +16,7 @@ using namespace v8;
 class Tessocr;
 
 struct TessocrBaton {
-  Tessocr *tessocr;
-  int error;
+  int errcode;
   char* language;
   char* tessdata;
   char* textresult;
@@ -27,15 +26,12 @@ struct TessocrBaton {
   unsigned char *data;
   size_t length;
 
-  uv_work_t *req;
-
   void reset() {
     buffer.Reset();
     data = 0;
     length = 0;
 
-    if (req) delete req;
-    req = 0;
+    errcode = 0;
 
     delete[] language;
     language = 0;
@@ -47,23 +43,16 @@ struct TessocrBaton {
       delete[] rect;
       rect = 0;
     }
-  }
-
-  void destory() {
-    reset();
     if (callback) delete callback;
     callback = 0;
   }
 };
 
 
-class Tessocr: public Nan::ObjectWrap {
-public:
+struct Tessocr: public Nan::ObjectWrap {
   static void Init(Local<Object> exports);
   static NAN_METHOD(New);
   static NAN_METHOD(Ocr);
-
-  TessocrBaton baton;
 
 private:
   Tessocr();
