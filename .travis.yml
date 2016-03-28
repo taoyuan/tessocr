@@ -1,9 +1,20 @@
-language: node_js
-node_js:
-  - v5
-  - v4
-  - '0.12'
-  - '0.10'
+language: objective-c
+env:
+  matrix:
+  - NODE_VERSION="4.4"
+  - NODE_VERSION="5.0"
+
+before_install:
+  - brew update
+  - brew install nvm
+  - mkdir ~/.nvm
+  - export NVM_DIR=~/.nvm
+  - source $(brew --prefix nvm)/nvm.sh
+  - nvm install $NODE_VERSION
+  - node --version
+  - npm --version
+  - npm update -g npm
+  - npm --version
 
 addons:
   apt:
@@ -14,3 +25,10 @@ addons:
       - cmake-data
       - libleptonica-dev
       - libtesseract-dev
+
+install:
+  - export PATH=./node_modules/.bin/:$PATH
+
+script:
+  - npm install
+
