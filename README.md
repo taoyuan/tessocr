@@ -49,8 +49,9 @@ $ node examples/ocr/ocr.js
 The code below shows a fully functional server where you can POST pictures to. The response will contain the recognized plain text or be empty if nothing was recognized or something went wrong.
 
 ```js
-var tessocr = require('tessocr');
 var http = require('http');
+var tessocr = require('tessocr');
+var tess = tessocr.tess();
 
 var server = http.createServer(function (request, response) {
   if (request.method === 'POST') {
@@ -68,7 +69,7 @@ var server = http.createServer(function (request, response) {
 
     request.on('end', function () {
       var buffer = Buffer.concat(bufferList, totalSize);
-      tessocr.ocr(buffer, function (err, result) {
+      tess.ocr(buffer, function (err, result) {
         if (err) {
           response.writeHead(500, {'Content-Type': 'text/plain'});
           response.end("Error " + err);
@@ -91,7 +92,7 @@ Parameters
 The OCR function also accepts a config object as second and the callback as third parameter like this:
 
 ```js
-tessocr.ocr(buffer, { lang:"eng", rect:[0,0,400,400] }, function(err, result) {
+tess.ocr(buffer, { lang:"eng", rect:[0,0,400,400] }, function(err, result) {
   // do something
 });
 ```
@@ -99,7 +100,7 @@ tessocr.ocr(buffer, { lang:"eng", rect:[0,0,400,400] }, function(err, result) {
 or 
 
 ```js
-tessocr.ocr(filename, { lang:"eng", rect:[0,0,400,400] }, function(err, result) {
+tess.ocr(filename, { lang:"eng", rect:[0,0,400,400] }, function(err, result) {
   // do something
 });
 ```
