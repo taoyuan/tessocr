@@ -6,7 +6,7 @@ env:
 
 before_install:
   - brew update
-  - brew install nvm
+  - brew install nvm cmake tesseract
   - mkdir ~/.nvm
   - export NVM_DIR=~/.nvm
   - source $(brew --prefix nvm)/nvm.sh
@@ -16,19 +16,20 @@ before_install:
   - npm update -g npm
   - npm --version
 
-addons:
-  apt:
-    sources:
-      - george-edison55-precise-backports
-    packages:
-      - cmake
-      - cmake-data
-      - libleptonica-dev
-      - libtesseract-dev
+#addons:
+#  apt:
+#    sources:
+#      - george-edison55-precise-backports
+#    packages:
+#      - cmake
+#      - cmake-data
+#      - libleptonica-dev
+#      - libtesseract-dev
 
 install:
   - export PATH=./node_modules/.bin/:$PATH
 
 script:
   - npm install
+  - npm test
 
