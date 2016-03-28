@@ -1,7 +1,12 @@
 tessocr
 [![NPM version][npm-image]][npm-url] [![Build Status][travis-image]][travis-url] [![Dependency Status][daviddm-image]][daviddm-url]
 
-> A C++ module for node providing OCR with tesseract and leptonica
+> A C++ module for node providing OCR with tesseract and leptonica forked from [node-tesseract-native](https://github.com/mdelete/node-tesseract-native).
+
+## Extra Features 
+
+ * Support node v4 and v5
+ * Support filename as image source
 
 ## Prerequisites
 
@@ -87,6 +92,14 @@ The OCR function also accepts a config object as second and the callback as thir
 
 ```js
 tessocr.ocr(buffer, { lang:"eng", rect:[0,0,400,400] }, function(err, result) {
+  // do something
+});
+```
+
+or 
+
+```js
+tessocr.ocr(filename, { lang:"eng", rect:[0,0,400,400] }, function(err, result) {
   // do something
 });
 ```
