@@ -6,6 +6,7 @@ env:
 
 before_install:
   - brew update
+  - brew unlink cmake
   - brew install nvm cmake tesseract
   - mkdir ~/.nvm
   - export NVM_DIR=~/.nvm
