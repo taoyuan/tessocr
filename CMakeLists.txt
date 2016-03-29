@@ -6,6 +6,8 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/node_modules/node-cmak
 
 find_package(NodeJS)
 
+add_definitions(-DHAVE_FMEMOPEN)
+
 add_nodejs_module(
     ${PROJECT_NAME}
     src/helpers.h

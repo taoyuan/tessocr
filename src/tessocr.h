@@ -8,7 +8,7 @@
 
 #include "helpers.h"
 
-#define DEBUG
+//#define DEBUG
 #define INFO
 
 using namespace node;

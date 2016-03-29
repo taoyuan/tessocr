@@ -1,11 +1,11 @@
 'use strict';
 
-// var path = require('path');
-// var binary = require('node-pre-gyp');
-// var binding_path = binary.find(path.resolve(path.join(__dirname,'./package.json')));
-// var binding = require(binding_path);
+var path = require('path');
+var binary = require('node-pre-gyp');
+var binding_path = binary.find(path.resolve(path.join(__dirname,'./package.json')));
+var binding = require(binding_path);
 
-var binding = require('node-cmake')('tessocr');
+// var binding = require('node-cmake')('tessocr');
 var fs = require('fs');
 
 function noop() {
