@@ -45,7 +45,7 @@
   },
   "repository": "taoyuan/tessocr",
   "scripts": {
-    "install": "ncmake --build build",
+    "install": "ncmake -C 11 --build build",
     "gyp": "node-pre-gyp install --fallback-to-build",
     "prepublish": "gulp prepublish",
     "test": "gulp"
