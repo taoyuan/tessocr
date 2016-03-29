@@ -24,18 +24,22 @@ Local<Value> ocr_error(int code) {
 void __eio_ocr(uv_work_t *req) {
   TessocrBaton *baton = static_cast<TessocrBaton *>(req->data);
   tesseract::TessBaseAPI api;
-  int r = api.Init(baton->tessdata, baton->language, tesseract::OEM_DEFAULT, NULL, 0, NULL, NULL, false);
+  DEBUG_LOG("Init tesseract api with (lang: '%s', tessdata: '%s')", baton->language->data(), baton->tessdata->data());
+  int r = api.Init(baton->tessdata->data(), baton->language->data(), tesseract::OEM_DEFAULT, NULL, 0, NULL, NULL, false);
   if (r == 0) {
     PIX *pix = NULL;
     if (baton->data) {
       DEBUG_LOG("Reading image from buffer (%d bytes)", baton->length);
       pix = pixReadMem(baton->data, baton->length);
-    } else {
-      DEBUG_LOG("Reading image from %s", baton->path);
-      pix = pixRead(baton->path);
+    } else if (baton->path) {
+      DEBUG_LOG("Reading image from %s", baton->path->data());
+      pix = pixRead(baton->path->data());
     }
     if (pix) {
       api.SetImage(pix);
+      if (baton->psm) {
+        api.SetPageSegMode((tesseract::PageSegMode) baton->psm);
+      }
       if (baton->rect) {
         api.SetRectangle(baton->rect[0], baton->rect[1], baton->rect[2], baton->rect[3]);
       }
@@ -107,11 +111,11 @@ NAN_METHOD(Tessocr::Ocr) {
   Local<Object> buffer;
   unsigned char *data = NULL;
   size_t length = 0;
-  char *path = NULL;
+  std::string *path = NULL;
 
   if (info[0]->IsString()) {
     String::Utf8Value str(info[0]->ToString());
-    path = *str;
+    path = new std::string(*str);
   } else if (Buffer::HasInstance(info[0])) {
     buffer = info[0]->ToObject();
     data = (unsigned char *) node::Buffer::Data(buffer);
@@ -124,15 +128,16 @@ NAN_METHOD(Tessocr::Ocr) {
     THROW_BAD_ARGS("Argument 1 must be a object");
   }
   Local<Object> config = info[1]->ToObject();
-  char *language = NULL;
-  char *tessdata = NULL;
+  std::string *language = NULL;
+  std::string *tessdata = NULL;
+  int psm = 0;
   int *rect = NULL;
 
   Local<Value> lang_value = Nan::Get(config, Nan::New("lang").ToLocalChecked()).ToLocalChecked();
   if (lang_value->IsString()) {
     String::Utf8Value str(lang_value);
-    if (str.length() == 3) {
-      language = *str;
+    if (str.length() > 0) {
+      language = new std::string(*str);
     }
   }
 
@@ -140,8 +145,13 @@ NAN_METHOD(Tessocr::Ocr) {
   if (tessdata_value->IsString()) {
     String::Utf8Value str(tessdata_value);
     if (str.length() < 4095) {
-      tessdata = *str;
+      tessdata = new std::string(*str);
     }
+  }
+
+  Local<Value> psm_value = Nan::Get(config, Nan::New("psm").ToLocalChecked()).ToLocalChecked();
+  if (psm_value->IsNumber()) {
+    psm = (int) psm_value->ToInteger()->Value();
   }
 
   Local<Value> box_value = Nan::Get(config, Nan::New("rect").ToLocalChecked()).ToLocalChecked();
@@ -170,17 +180,23 @@ NAN_METHOD(Tessocr::Ocr) {
   if (language) {
     baton->language = language;
   } else {
-    baton->language = strdup("eng");
+    baton->language = new std::string("eng");
   }
 
   if (tessdata) {
     baton->tessdata = tessdata;
   } else {
-    baton->tessdata = strdup("/usr/local/share/tessdata/");
+    baton->tessdata = new std::string("/usr/local/share/tessdata/");
+  }
+
+  if (psm) {
+    baton->psm = psm;
+  } else {
+    baton->psm = 3;
   }
 
   if (path) {
-    strcpy(baton->path, path);
+    baton->path = path;
   } else {
     baton->buffer.Reset(buffer);
     baton->data = data;

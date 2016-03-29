@@ -1,6 +1,6 @@
 "use strict";
 
-var tessocr = require('../..');
+var tessocr = require('..');
 var http = require('http');
 
 var server = http.createServer(function (request, response) {

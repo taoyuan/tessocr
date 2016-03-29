@@ -8,6 +8,7 @@
 
 #include "helpers.h"
 
+#define DEBUG
 #define INFO
 
 using namespace node;
@@ -17,15 +18,18 @@ class Tessocr;
 
 struct TessocrBaton {
   int errcode;
-  char* language;
-  char* tessdata;
-  char* textresult;
+  std::string *language;
+  std::string *tessdata;
+  int psm;
   int* rect;
+
+  std::string *path;
   Nan::Callback *callback;
-  char path[1024];
   Nan::Persistent<Object> buffer;
   unsigned char *data;
   size_t length;
+
+  char* textresult;
 
   void reset() {
     buffer.Reset();
@@ -33,19 +37,24 @@ struct TessocrBaton {
     length = 0;
 
     errcode = 0;
+    psm = 0;
 
-    delete[] language;
+    if (language) delete language;
     language = 0;
-    delete[] tessdata;
+    if (tessdata) delete tessdata;
     tessdata = 0;
-    delete[] textresult;
-    textresult = 0;
+
     if(rect) {
       delete[] rect;
       rect = 0;
     }
+    if (path) delete path;
+    path = 0;
     if (callback) delete callback;
     callback = 0;
+
+    delete[] textresult;
+    textresult = 0;
   }
 };
 
