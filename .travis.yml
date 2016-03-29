@@ -44,7 +44,8 @@ before_install:
   # install tessdata
   - wget https://tesseract-ocr.googlecode.com/files/tesseract-ocr-3.02.eng.tar.gz
   - tar -zxvf tesseract-ocr-3.02.eng.tar.gz
-  - sudo mv ./tesseract-ocr/tessdata/* /usr/local/share/tessdata/
+  - if [[ $TRAVIS_OS_NAME == "osx" ]]; sudo mkdir -p /usr/local/share/tessdata; sudo mv ./tesseract-ocr/tessdata/* /usr/local/share/tessdata/; fi
+  - if [[ $TRAVIS_OS_NAME == "osx" ]]; sudo mkdir -p /usr/share/tesseract-ocr/tessdata/; sudo mv ./tesseract-ocr/tessdata/* /usr/share/tesseract-ocr/tessdata/; fi
   # reinstall latest nvm
   - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm.git ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install $TRAVIS_NODE_VERSION
   - BASE_URL=$(node -p "v=parseInt(process.versions.node),(v>=1&&v<4?'https://iojs.org/dist/':'https://nodejs.org/dist/')+process.version")
