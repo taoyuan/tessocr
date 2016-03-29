@@ -6,10 +6,20 @@
 // var binding = require(binding_path);
 
 var binding = require('node-cmake')('tessocr');
+var fs = require('fs');
 
 function noop() {
 }
 
+var DEFAULT_TESSDATA = '/usr/local/share/tessdata';
+if (!fs.existsSync(DEFAULT_TESSDATA)) {
+  DEFAULT_TESSDATA = '/usr/share/tesseract-ocr/tessdata';
+  if (!fs.existsSync(DEFAULT_TESSDATA)) {
+    console.warn('[WARN] No default tessdata found from:');
+    console.warn('    - /usr/local/share/tessdata');
+    console.warn('    - /usr/share/tesseract-ocr/tessdata');
+  }
+}
 /**
  *
  * @returns {Tess}
@@ -36,7 +46,8 @@ Tess.prototype.ocr = function (image, options, cb) {
 
   options = merge({
     lang: 'eng',
-    psm: 3
+    psm: 3,
+    tessdata: DEFAULT_TESSDATA
   }, options);
   cb = cb || noop;
 
