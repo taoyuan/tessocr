@@ -1,12 +1,15 @@
 'use strict';
 
-var binding = require('node-cmake')('tessocr');
+var path = require('path');
+var binary = require('node-pre-gyp');
+var binding_path = binary.find(path.resolve(path.join(__dirname,'./package.json')));
+var binding = require(binding_path);
 
 function noop() {
 }
 
 /**
- * 
+ *
  * @returns {Tess}
  * @constructor
  */

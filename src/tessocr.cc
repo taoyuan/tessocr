@@ -150,7 +150,7 @@ NAN_METHOD(Tessocr::Ocr) {
     int len = box->Get(Nan::New("length").ToLocalChecked())->ToObject()->Uint32Value();
     if (len == 4) {
       rect = new int[len];
-      for (uint32_t i = 0; i < len; i++) {
+      for (int i = 0; i < len; i++) {
         Local<Value> element = box->Get(i);
         if (element->IsNumber()) {
           rect[i] = (int) element->ToInteger()->Value();

@@ -17,11 +17,17 @@
     "registry": "http://registry.npmjs.com"
   },
   "dependencies": {
-    "node-cmake": "^1.1.0"
+    "nan": "^2.2.0",
+    "node-pre-gyp": "^0.6.24",
+    "node-pre-gyp-github": "^1.1.2"
   },
+  "bundledDependencies": [
+    "node-pre-gyp",
+    "node-pre-gyp-github"
+  ],
   "devDependencies": {
     "chai": "^3.5.0",
-    "eslint": "^2.5.1",
+    "eslint": "^2.5.3",
     "eslint-config-xo-space": "^0.11.0",
     "gulp": "^3.9.1",
     "gulp-coveralls": "^0.1.4",
@@ -32,7 +38,8 @@
     "gulp-mocha": "^2.2.0",
     "gulp-nsp": "^2.3.1",
     "gulp-plumber": "^1.1.0",
-    "mocha": "^2.4.5"
+    "mocha": "^2.4.5",
+    "node-cmake": "^1.1.0"
   },
   "eslintConfig": {
     "extends": "xo-space",
@@ -42,9 +49,15 @@
   },
   "repository": "taoyuan/tessocr",
   "scripts": {
+    "install": "node-pre-gyp install --fallback-to-build",
     "prepublish": "gulp prepublish",
-    "install": "ncmake --build",
     "test": "gulp"
+  },
+  "binary": {
+    "module_name": "tessocr",
+    "module_path": "./build/{configuration}/{node_abi}-{platform}-{arch}/",
+    "package_name": "{node_abi}-{platform}-{arch}.tar.gz",
+    "host": "https://github.com/taoyuan/tessocr/releases/download/0.0.1"
   },
   "license": "MIT"
 }

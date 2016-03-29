@@ -50,7 +50,8 @@ struct TessocrBaton {
 };
 
 
-struct Tessocr: public Nan::ObjectWrap {
+class Tessocr: public Nan::ObjectWrap {
+public:
   static void Init(Local<Object> exports);
   static NAN_METHOD(New);
   static NAN_METHOD(Ocr);
