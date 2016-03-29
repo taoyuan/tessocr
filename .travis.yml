@@ -39,13 +39,15 @@ env:
       env: TRAVIS_NODE_VERSION="5" ARCH="x86"
 
 before_install:
+  - if [[ $TRAVIS_OS_NAME == linux   ]]; then LINUX=true; fi
+  - if [[ $TRAVIS_OS_NAME == osx     ]]; then OSX=true; fi
   # install tesseract for osx
   - if [[ $TRAVIS_OS_NAME == "osx" ]]; then brew update; brew install tesseract; fi
   # install tessdata
   - wget https://tesseract-ocr.googlecode.com/files/tesseract-ocr-3.02.eng.tar.gz
   - tar -zxvf tesseract-ocr-3.02.eng.tar.gz
-  - if [[ $TRAVIS_OS_NAME == "osx" ]]; then export TESSDATA_HOME=/usr/local/share/tessdata; fi
-  - if [[ $TRAVIS_OS_NAME == "linux" ]]; then export TESSDATA_HOME=/usr/share/tesseract-ocr/tessdata/; fi
+  - if [[ $OSX ]]; then export TESSDATA_HOME=/usr/local/share/tessdata; fi
+  - if [[ $LINUX ]]; then export TESSDATA_HOME=/usr/share/tesseract-ocr/tessdata/; fi
   - sudo mkdir -p $TESSDATA_HOME
   - sudo mv ./tesseract-ocr/tessdata/* $TESSDATA_HOME
   # reinstall latest nvm
