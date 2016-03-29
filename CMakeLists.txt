@@ -13,10 +13,11 @@ add_nodejs_module(
 )
 
 set(LIB_PATHS /usr/local/include;/usr/include)
-nodejs_find_module_fallback(nan ${CMAKE_CURRENT_SOURCE_DIR} NAN_PATH)
-
-target_include_directories(${PROJECT_NAME} PUBLIC ${LIB_PATHS} ${NAN_PATH})
+target_include_directories(${PROJECT_NAME} PUBLIC ${LIB_PATHS})
 
 find_library(LEPT NAMES "lept" PATHS ${LIB_PATHS})
 find_library(TESSERACT NAMES "tesseract" PATHS ${LIB_PATHS})
 target_link_libraries(${PROJECT_NAME} ${LEPT} ${TESSERACT})
+
+#nodejs_find_module_fallback(nan ${CMAKE_CURRENT_SOURCE_DIR} NAN_PATH)
+#target_include_directories(${PROJECT_NAME} PUBLIC ${LIB_PATHS} ${NAN_PATH})
