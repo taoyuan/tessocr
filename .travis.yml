@@ -41,6 +41,10 @@ env:
 before_install:
   # install tesseract for osx
   - if [[ $TRAVIS_OS_NAME == "osx" ]]; then brew update; brew install tesseract; fi
+  # install tessdata
+  - wget https://tesseract-ocr.googlecode.com/files/tesseract-ocr-3.02.eng.tar.gz
+  - tar -zxvf tesseract-ocr-3.02.eng.tar.gz
+  - sudo mv ./tesseract-ocr/tessdata/* /usr/local/share/tessdata/
   # reinstall latest nvm
   - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm.git ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install $TRAVIS_NODE_VERSION
   - BASE_URL=$(node -p "v=parseInt(process.versions.node),(v>=1&&v<4?'https://iojs.org/dist/':'https://nodejs.org/dist/')+process.version")
