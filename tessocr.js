@@ -72,7 +72,7 @@ exports.Tess = exports.tess = Tess;
 function merge(defaults, options) {
   defaults = defaults || {};
   if (options && typeof options === 'object') {
-    keys = Object.keys(options);
+    var keys = Object.keys(options);
     for (var i = 0; i < keys.length; i += 1) {
       if (options[keys[i]] !== undefined) {
         defaults[keys[i]] = options[keys[i]];
