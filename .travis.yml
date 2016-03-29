@@ -1,9 +1,9 @@
+language: cpp
 os:
   - linux
   - osx
 # turn on new container-based infrastructure
 sudo: required
-language: cpp
 addons:
   apt:
     sources:
@@ -45,7 +45,7 @@ before_install:
   - if [[ $LINUX ]]; then wget --no-check-certificate https://www.cmake.org/files/v3.5/cmake-3.5.1-Linux-x86_64.sh; fi
   - if [[ $LINUX ]]; then sudo sh cmake-3.5.1-Linux-x86_64.sh --skip-license --prefix=/usr; fi
   # install cmake tesseract for osx
-  - if [[ $OSX ]]; then brew update; brew upgrade; brew install cmake tesseract; fi
+  - if [[ $OSX ]]; then brew update; brew upgrade cmake; brew install tesseract; fi
   # install tessdata
   - wget https://tesseract-ocr.googlecode.com/files/tesseract-ocr-3.02.eng.tar.gz
   - tar -zxvf tesseract-ocr-3.02.eng.tar.gz
