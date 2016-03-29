@@ -47,12 +47,12 @@ before_install:
   # install cmake tesseract for osx
   - if [[ $OSX ]]; then brew update; brew upgrade cmake; brew install tesseract; fi
   # install tessdata
-  - wget https://tesseract-ocr.googlecode.com/files/tesseract-ocr-3.02.eng.tar.gz
-  - tar -zxvf tesseract-ocr-3.02.eng.tar.gz
-  - if [[ $OSX ]]; then export TESSDATA_HOME=/usr/local/share/tessdata; fi
-  - if [[ $LINUX ]]; then export TESSDATA_HOME=/usr/share/tesseract-ocr/tessdata/; fi
-  - sudo mkdir -p $TESSDATA_HOME
-  - sudo mv ./tesseract-ocr/tessdata/* $TESSDATA_HOME
+#  - wget https://tesseract-ocr.googlecode.com/files/tesseract-ocr-3.02.eng.tar.gz
+#  - tar -zxvf tesseract-ocr-3.02.eng.tar.gz
+#  - if [[ $OSX ]]; then export TESSDATA_HOME=/usr/local/share/tessdata; fi
+#  - if [[ $LINUX ]]; then export TESSDATA_HOME=/usr/share/tesseract-ocr/tessdata/; fi
+#  - sudo mkdir -p $TESSDATA_HOME
+#  - sudo mv ./tesseract-ocr/tessdata/* $TESSDATA_HOME
   # reinstall latest nvm
   - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install $TRAVIS_NODE_VERSION
   - BASE_URL=$(node -p "v=parseInt(process.versions.node),(v>=1&&v<4?'https://iojs.org/dist/':'https://nodejs.org/dist/')+process.version")

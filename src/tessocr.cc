@@ -39,7 +39,7 @@ void __eio_ocr(uv_work_t *req) {
       api.SetImage(pix);
 
       if (baton->psm) {
-        DEBUG_LOG("Setting psm to", baton->psm);
+        DEBUG_LOG("Setting psm to %d", baton->psm);
         api.SetPageSegMode((tesseract::PageSegMode) baton->psm);
       }
       if (baton->rect) {

@@ -36,6 +36,11 @@ function Tess() {
  *
  * @param {Object|String} image The image data or image filename
  * @param {Object|Function} [options] Options
+ * @param {String} [options.lang] Language
+ * @param {String} [options.l] Language
+ * @param {String} [options.language] Language
+ * @param {String} [options.psm] psm
+ * @param {String} [options.tessdata] psm
  * @param {Function} [cb] Callback
  */
 Tess.prototype.ocr = function (image, options, cb) {
@@ -43,12 +48,14 @@ Tess.prototype.ocr = function (image, options, cb) {
     cb = options;
     options = cb;
   }
-
+  options = options || {};
+  options.lang = options.lang || options.l || options.language;
   options = merge({
     lang: 'eng',
     psm: 3,
     tessdata: DEFAULT_TESSDATA
   }, options);
+
   cb = cb || noop;
 
   return this.native.ocr(image, options, cb);
@@ -65,10 +72,8 @@ exports.Tess = exports.tess = Tess;
 function merge(defaults, options) {
   defaults = defaults || {};
   if (options && typeof options === 'object') {
-    var i = 0,
-      keys = Object.keys(options);
-
-    for (i = 0; i < keys.length; i += 1) {
+    keys = Object.keys(options);
+    for (var i = 0; i < keys.length; i += 1) {
       if (options[keys[i]] !== undefined) {
         defaults[keys[i]] = options[keys[i]];
       }

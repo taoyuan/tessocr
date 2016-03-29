@@ -9,10 +9,14 @@ var tess = tessocr.tess();
 
 var imageFile = path.join(__dirname, 'fixtures', 'hello_world.jpg');
 
+var options = {
+  // tessdata: '/'
+};
+
 describe('tessocr', function () {
 
   it('should ocr image from file', function (done) {
-    tess.ocr(imageFile, function (err, result) {
+    tess.ocr(imageFile, options, function (err, result) {
       if (err) return done(err);
       assert.equal(result, 'hello, world\n\n');
       console.log(result);
