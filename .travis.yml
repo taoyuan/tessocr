@@ -9,12 +9,13 @@ addons:
     sources:
     - ubuntu-toolchain-r-test
     packages:
+    - gcc-4.8
     - g++-4.8
     - g++-4.8-multilib
     - gcc-multilib
+    - tesseract-ocr
     - libleptonica-dev
     - libtesseract-dev
-    - tesseract-ocr
 env:
   matrix:
   - TRAVIS_NODE_VERSION="0.10"
@@ -26,7 +27,7 @@ env:
   - TRAVIS_NODE_VERSION="4" ARCH="x86"
   - TRAVIS_NODE_VERSION="5" ARCH="x86"
   global:
-    - secure: nFQKlcfG1rV/kQm1EJtgQyRefZb6scdn/9epEaJgAyaqDRXHSZIFSuoOh4d/P5GC6V0yi6dA8I+XJsoRy29qG+JXWxN2enwjp16IbpUri9Z5H8uZPur1N6QPby9BX+PX5/4HU+KRgWtFDdfqqzbLmObXsxIUGtZtBbRY9otiUt8=
+#    - secure: nFQKlcfG1rV/kQm1EJtgQyRefZb6scdn/9epEaJgAyaqDRXHSZIFSuoOh4d/P5GC6V0yi6dA8I+XJsoRy29qG+JXWxN2enwjp16IbpUri9Z5H8uZPur1N6QPby9BX+PX5/4HU+KRgWtFDdfqqzbLmObXsxIUGtZtBbRY9otiUt8=
   exclude:
     - os: osx
       env: TRAVIS_NODE_VERSION="0.10" ARCH="x86"
@@ -38,6 +39,7 @@ env:
       env: TRAVIS_NODE_VERSION="5" ARCH="x86"
 
 before_install:
+  # install tesseract for osx
   - if [[ $TRAVIS_OS_NAME == "osx" ]]; then brew update; brew install tesseract; fi
   # reinstall latest nvm
   - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm.git ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install $TRAVIS_NODE_VERSION
@@ -70,8 +72,14 @@ before_install:
   - echo "Publishing native platform Binary Package? ->" $PUBLISH_BINARY
 
 install:
+  # install cmake
+  - wget --no-check-certificate https://www.cmake.org/files/v3.5/cmake-3.5.1-Linux-x86_64.sh
+  - sudo sh cmake-3.5.1-Linux-x86_64.sh --skip-license --prefix=/usr
+  #
+  - if [[ $LINUX && "$CXX" = "g++" ]]; then export CXX="g++-4.8" CC="gcc-4.8"; fi
   # ensure source install works
-  - npm install --build-from-source
+#  - npm install --build-from-source
+  - npm install
 
 script:
   # test our module
@@ -81,7 +89,7 @@ script:
   - if [[ $PUBLISH_BINARY == true ]]; then node-pre-gyp package; fi;
   - if [[ $PUBLISH_BINARY == true ]]; then node-pre-gyp-github publish --release; fi;
   # cleanup
-  - node-pre-gyp clean
-  - node-gyp clean
+#  - node-pre-gyp clean
+#  - node-gyp clean
   # test binary exists
   - if [[ $PUBLISH_BINARY == true ]]; then npm install --fallback-to-build=false; fi;
