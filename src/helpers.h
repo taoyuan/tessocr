@@ -46,23 +46,23 @@ inline static void setConst(Handle<Object> obj, const char* const name, Handle<V
 	if (!info.Length() || !info[0]->IsExternal()){ \
 		return Nan::ThrowError("This type cannot be created directly!"); \
 	}                                               \
-	auto that = static_cast<CLASS*>(External::Cast(*info[0])->Value()); \
+	CLASS* that = static_cast<CLASS*>(External::Cast(*info[0])->Value()); \
 	that->attach(info.This())
 
 #define ENTER_METHOD(CLASS, MIN_ARGS) \
 	Nan::HandleScope scope;                \
 	CHECK_N_ARGS(MIN_ARGS);           \
-	auto that = Nan::ObjectWrap::Unwrap<CLASS>(info.This()); \
+	CLASS* that = Nan::ObjectWrap::Unwrap<CLASS>(info.This()); \
 	if (that == NULL) { THROW_BAD_ARGS(#CLASS " method called on invalid object") }
 
 #define ENTER_ACCESSOR(CLASS) \
 		Nan::HandleScope scope;                \
-		auto that = Nan::ObjectWrap::Unwrap<CLASS>(info.Holder());
+		CLASS* that = Nan::ObjectWrap::Unwrap<CLASS>(info.Holder());
 
 #define UNWRAP_ARG(CLASS, NAME, ARGNO)     \
 	if (!info[ARGNO]->IsObject())          \
 		THROW_BAD_ARGS("Parameter " #NAME " is not an object"); \
-	auto NAME = Nan::ObjectWrap::Unwrap<CLASS>(Handle<Object>::Cast(info[ARGNO])); \
+	CLASS* NAME = Nan::ObjectWrap::Unwrap<CLASS>(Handle<Object>::Cast(info[ARGNO])); \
 	if (!NAME)                             \
 		THROW_BAD_ARGS("Parameter " #NAME " (" #ARGNO ") is of incorrect type");
 
