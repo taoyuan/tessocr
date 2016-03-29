@@ -29,7 +29,7 @@ void __eio_ocr(uv_work_t *req) {
   if (r == 0) {
     PIX *pix = NULL;
     if (baton->data) {
-      DEBUG_LOG("Reading image from buffer (%d bytes)", baton->length);
+      DEBUG_LOG("Reading image from buffer (%d bytes)", (int) baton->length);
       pix = pixReadMem(baton->data, baton->length);
     } else if (baton->path) {
       DEBUG_LOG("Reading image from %s", baton->path->data());
