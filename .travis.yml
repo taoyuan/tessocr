@@ -18,14 +18,14 @@ addons:
     - libtesseract-dev
 env:
   matrix:
-  - TRAVIS_NODE_VERSION="0.10"
-  - TRAVIS_NODE_VERSION="0.12"
+#  - TRAVIS_NODE_VERSION="0.10"
+#  - TRAVIS_NODE_VERSION="0.12"
   - TRAVIS_NODE_VERSION="4"
-  - TRAVIS_NODE_VERSION="5"
-  - TRAVIS_NODE_VERSION="0.10" ARCH="x86"
-  - TRAVIS_NODE_VERSION="0.12" ARCH="x86"
-  - TRAVIS_NODE_VERSION="4" ARCH="x86"
-  - TRAVIS_NODE_VERSION="5" ARCH="x86"
+#  - TRAVIS_NODE_VERSION="5"
+#  - TRAVIS_NODE_VERSION="0.10" ARCH="x86"
+#  - TRAVIS_NODE_VERSION="0.12" ARCH="x86"
+#  - TRAVIS_NODE_VERSION="4" ARCH="x86"
+#  - TRAVIS_NODE_VERSION="5" ARCH="x86"
   global:
 #    - secure: nFQKlcfG1rV/kQm1EJtgQyRefZb6scdn/9epEaJgAyaqDRXHSZIFSuoOh4d/P5GC6V0yi6dA8I+XJsoRy29qG+JXWxN2enwjp16IbpUri9Z5H8uZPur1N6QPby9BX+PX5/4HU+KRgWtFDdfqqzbLmObXsxIUGtZtBbRY9otiUt8=
   exclude:
@@ -41,8 +41,11 @@ env:
 before_install:
   - if [[ $TRAVIS_OS_NAME == linux   ]]; then LINUX=true; fi
   - if [[ $TRAVIS_OS_NAME == osx     ]]; then OSX=true; fi
-  # install tesseract for osx
-  - if [[ $TRAVIS_OS_NAME == "osx" ]]; then brew update; brew install tesseract; fi
+  # install cmake for linux
+  - if [[ $LINUX ]]; then wget --no-check-certificate https://www.cmake.org/files/v3.5/cmake-3.5.1-Linux-x86_64.sh; fi
+  - if [[ $LINUX ]]; then sudo sh cmake-3.5.1-Linux-x86_64.sh --skip-license --prefix=/usr; fi
+  # install cmake tesseract for osx
+  - if [[ $OSX ]]; then brew update; brew upgrade; brew install cmake tesseract; fi
   # install tessdata
   - wget https://tesseract-ocr.googlecode.com/files/tesseract-ocr-3.02.eng.tar.gz
   - tar -zxvf tesseract-ocr-3.02.eng.tar.gz
@@ -60,9 +63,6 @@ before_install:
   - npm --version
 
 install:
-  # install cmake
-  - wget --no-check-certificate https://www.cmake.org/files/v3.5/cmake-3.5.1-Linux-x86_64.sh
-  - sudo sh cmake-3.5.1-Linux-x86_64.sh --skip-license --prefix=/usr
   #
   - if [[ $LINUX && "$CXX" = "g++" ]]; then export CXX="g++-4.8" CC="gcc-4.8"; fi
   # ensure source install works
