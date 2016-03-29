@@ -37,10 +37,13 @@ void __eio_ocr(uv_work_t *req) {
     }
     if (pix) {
       api.SetImage(pix);
+
       if (baton->psm) {
+        DEBUG_LOG("Setting psm to", baton->psm);
         api.SetPageSegMode((tesseract::PageSegMode) baton->psm);
       }
       if (baton->rect) {
+        DEBUG_LOG("Setting rect to (%d, %d, %d, %d)", baton->rect[0], baton->rect[1], baton->rect[2], baton->rect[3]);
         api.SetRectangle(baton->rect[0], baton->rect[1], baton->rect[2], baton->rect[3]);
       }
       baton->textresult = api.GetUTF8Text();
@@ -48,10 +51,12 @@ void __eio_ocr(uv_work_t *req) {
       pixDestroy(&pix);
     }
     else {
+      DEBUG_LOG("Reading image error");
       baton->errcode = 2;
     }
   }
   else {
+    DEBUG_LOG("Tesseract init error with %d", r);
     baton->errcode = r;
   }
 }
