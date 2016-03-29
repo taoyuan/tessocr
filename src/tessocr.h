@@ -84,7 +84,7 @@ private:
   } \
 
 #ifdef DEBUG
-#define DEBUG_HEADER fprintf(stderr, "ntesseract [%s:%s() %d]: ", __FILE__, __FUNCTION__, __LINE__);
+#define DEBUG_HEADER fprintf(stderr, "tessocr [%s:%s() %d]: ", __FILE__, __FUNCTION__, __LINE__);
 #define DEBUG_FOOTER fprintf(stderr, "\n");
 #define DEBUG_LOG(...) DEBUG_HEADER fprintf(stderr, __VA_ARGS__); DEBUG_FOOTER
 #else
