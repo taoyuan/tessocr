@@ -16,7 +16,7 @@ var options = {
 describe('tessocr', function () {
 
   it('should ocr image from file', function (done) {
-    tess.ocr(imageFile, options, function (err, result) {
+    tess.recognize(imageFile, options, function (err, result) {
       if (err) return done(err);
       assert.equal(result, 'hello, world\n\n');
       console.log(result);
@@ -27,7 +27,7 @@ describe('tessocr', function () {
   it('should ocr image from buffer', function (done) {
     fs.readFile(imageFile, function (err, data) {
       if (err) return done(err);
-      tess.ocr(data, function (err, result) {
+      tess.recognize(data, function (err, result) {
         if (err) return done(err);
         assert.equal(result, 'hello, world\n\n');
         done();

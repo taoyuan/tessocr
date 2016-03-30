@@ -6,21 +6,39 @@
 #include <node_buffer.h>
 #include <nan.h>
 
+#include <tesseract/baseapi.h>
+
 #include "helpers.h"
 
-//#define DEBUG
+#define DEBUG
 #define INFO
+#define PROFILE
+#define COMP
 
 using namespace node;
 using namespace v8;
 
 class Tessocr;
 
+enum PageRecognizeMode {
+  PRM_PAGE,     // Page mode
+  PRM_TEXTLINE  // Paragraph within a block.
+};
+
 struct TessocrBaton {
+  tesseract::TessBaseAPI *api;
+
   int errcode;
   std::string *language;
   std::string *tessdata;
+  // tesseract::PageSegMode
   int psm;
+  // Page recognize mode
+  // 0: full page recognize
+  // 1: text line recognize
+  // default is 0
+  int prm;
+
   int* rect;
 
   std::string *path;
@@ -29,7 +47,7 @@ struct TessocrBaton {
   unsigned char *data;
   size_t length;
 
-  char* textresult;
+  std::string *result;
 
   void reset() {
     buffer.Reset();
@@ -53,8 +71,8 @@ struct TessocrBaton {
     if (callback) delete callback;
     callback = 0;
 
-    delete[] textresult;
-    textresult = 0;
+    if (result) delete result;
+    result = 0;
   }
 };
 
@@ -63,7 +81,7 @@ class Tessocr: public Nan::ObjectWrap {
 public:
   static void Init(Local<Object> exports);
   static NAN_METHOD(New);
-  static NAN_METHOD(Ocr);
+  static NAN_METHOD(Recognize);
 
 private:
   Tessocr();
@@ -73,6 +91,11 @@ private:
   Nan::Persistent<v8::Object> This;
   static Nan::Persistent<FunctionTemplate> constructor_template;
 };
+
+#define CHECK_TESS(r) \
+	if (r != 0) { \
+		return Nan::ThrowError("Error code" #r); \
+	}
 
 #define CALLBACK_ARG(CALLBACK_ARG_IDX) \
   Local<Function> callback; \
@@ -95,6 +118,28 @@ private:
 #define INFO_LOG(...) fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n");
 #else
 #define INFO_LOG(...)
+#endif
+
+#ifdef PROFILE
+
+#define TIME_BEGIN() \
+  clock_t __start, __stop, __end; \
+  __start = __stop = clock(); \
+
+#define TIME_COUNT() \
+  __end = clock(); \
+	fprintf(stderr, "Elapse: %f\n", (__end - __stop) / (double) CLOCKS_PER_SEC ); \
+ 	__stop = clock(); \
+
+#define TIME_END() \
+  __end = clock(); \
+  if (__stop > __start) TIME_COUNT() \
+	fprintf(stderr, "Elapse all: %f\n", (__end - __start) / (double) CLOCKS_PER_SEC ); \
+
+#else
+#define TIME_BEGIN()
+#define TIME_COUNT()
+#define TIME_END()
 #endif
 
 #endif // TESSOCR_H

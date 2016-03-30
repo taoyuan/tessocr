@@ -25,11 +25,14 @@ if (!fs.existsSync(DEFAULT_TESSDATA)) {
  * @returns {Tess}
  * @constructor
  */
-function Tess() {
+function Tess(options) {
   if (!(this instanceof Tess)) {
-    return new Tess();
+    return new Tess(options);
   }
-  this.native = new binding.Tessocr();
+  options = options || {};
+  options.lang = options.lang || options.l || options.language || 'eng';
+  this.options = options;
+  this.native = new binding.Tessocr(options.lang, options.tessdata);
 }
 
 /**
@@ -43,7 +46,7 @@ function Tess() {
  * @param {String} [options.tessdata] psm
  * @param {Function} [cb] Callback
  */
-Tess.prototype.ocr = function (image, options, cb) {
+Tess.prototype.recognize = function (image, options, cb) {
   if (typeof options === 'function') {
     cb = options;
     options = cb;
@@ -54,11 +57,11 @@ Tess.prototype.ocr = function (image, options, cb) {
     lang: 'eng',
     psm: 3,
     tessdata: DEFAULT_TESSDATA
-  }, options);
+  }, this.options, options);
 
   cb = cb || noop;
 
-  return this.native.ocr(image, options, cb);
+  return this.native.recognize(image, options, cb);
 };
 
 exports.Tess = exports.tess = Tess;
@@ -66,18 +69,23 @@ exports.Tess = exports.tess = Tess;
 /**
  * merge helper function to merge objects
  * @param  {Object} defaults
- * @param  {Object} options
  * @return {Object}
  */
-function merge(defaults, options) {
+function merge(defaults) {
   defaults = defaults || {};
-  if (options && typeof options === 'object') {
-    var keys = Object.keys(options);
-    for (var i = 0; i < keys.length; i += 1) {
-      if (options[keys[i]] !== undefined) {
-        defaults[keys[i]] = options[keys[i]];
+
+  var targets = Array.prototype.slice.call(arguments, 1);
+
+  targets.forEach(function (target) {
+    if (target && typeof target === 'object') {
+      var keys = Object.keys(target);
+      for (var i = 0; i < keys.length; i += 1) {
+        if (target[keys[i]] !== undefined) {
+          defaults[keys[i]] = target[keys[i]];
+        }
       }
     }
-  }
+  });
+
   return defaults;
 }
