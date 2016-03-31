@@ -80,6 +80,8 @@ struct OcrOptions {
 };
 
 struct TokenizeOptions : OcrOptions {
+  // enable fast tokenization and using threshold as min white height
+  int threshold;
   int level;
   bool textOnly;
 };

@@ -65,8 +65,14 @@ TokenizeOptions *ParseTokenizeOptions(const Local<Object>& options) {
 
   ParseOcrOptions(*answer, options);
 
+  int threshold = 0;
   int level = tesseract::RIL_TEXTLINE;
   bool textOnly = true;
+
+  Local<Value> dpi_value = Nan::Get(options, Nan::New("threshold").ToLocalChecked()).ToLocalChecked();
+  if (dpi_value->IsNumber()) {
+    threshold = (int) dpi_value->ToInteger()->Value();
+  }
 
   Local<Value> level_value = Nan::Get(options, Nan::New("level").ToLocalChecked()).ToLocalChecked();
   if (level_value->IsNumber()) {
@@ -78,6 +84,7 @@ TokenizeOptions *ParseTokenizeOptions(const Local<Object>& options) {
     textOnly = text_only_value->ToBoolean()->Value();
   }
 
+  answer->threshold = threshold;
   answer->level = level;
   answer->textOnly = textOnly;
 
@@ -90,7 +97,7 @@ void __eio_tokenize(uv_work_t *req) {
 
   tesseract::TessBaseAPI api;
   TIME_BEGIN();
-  DEBUG_LOG("Initializing tesseract api with (lang: '%s', tessdata: '%s')", options->language->data(),
+  DEBUG_LOG("Initializing tesseract api with (language: '%s', tessdata: '%s')", options->language->data(),
             options->tessdata->data());
   int r = api.Init(options->tessdata->data(), options->language->data(), tesseract::OEM_DEFAULT, NULL, 0, NULL, NULL,
                    false);
@@ -101,24 +108,24 @@ void __eio_tokenize(uv_work_t *req) {
   }
   TIME_COUNT();
 
-  PIX *pix = NULL;
+  PIX *image = NULL;
   if (baton->data) {
     DEBUG_LOG("Reading image from buffer (%d bytes)", (int) baton->length);
-    pix = pixReadMem(baton->data, baton->length);
+    image = pixReadMem(baton->data, baton->length);
   } else if (baton->path) {
     DEBUG_LOG("Reading image from %s", baton->path->data());
-    pix = pixRead(baton->path->data());
+    image = pixRead(baton->path->data());
   }
 
-  if (!pix) {
+  if (!image) {
     snprintf(baton->errstring, sizeof(baton->errstring), "Tesseract read image error");
     return;
   }
 
-  baton->dimensions[0] = pix->w;
-  baton->dimensions[1] = pix->h;
+  baton->dimensions[0] = image->w;
+  baton->dimensions[1] = image->h;
 
-  api.SetImage(pix);
+  api.SetImage(image);
 
   if (options->psm) {
     DEBUG_LOG("Setting psm to %d", options->psm);
@@ -128,9 +135,9 @@ void __eio_tokenize(uv_work_t *req) {
   if (options->rects && options->rects->size() > 0) {
     for (std::list<Area *>::iterator it = options->rects->begin(); it != options->rects->end(); ++it) {
       Area rect;
-      CalcRect(rect, **it, pix->w, pix->h);
+      CalcRect(rect, **it, image->w, image->h);
 
-      DEBUG_LOG("Processing image (%d, %d) with rect (%d, %d, %d, %d)", pix->w, pix->h, rect.x, rect.y, rect.w, rect.h);
+      DEBUG_LOG("Processing image (%d, %d) with rect (%d, %d, %d, %d)", image->w, image->h, rect.x, rect.y, rect.w, rect.h);
       api.SetRectangle(rect.x, rect.y, rect.w, rect.h);
 
       TessTokenize(api, *baton->options, baton->results);
@@ -140,7 +147,7 @@ void __eio_tokenize(uv_work_t *req) {
   }
 
   api.End();
-  pixDestroy(&pix);
+  pixDestroy(&image);
   TIME_END();
 }
 
@@ -273,7 +280,7 @@ void __eio_recognize(uv_work_t *req) {
   RecognizeOptions *options = baton->options;
   tesseract::TessBaseAPI api;
   TIME_BEGIN();
-  DEBUG_LOG("Initing tesseract api with (lang: '%s', tessdata: '%s')", options->language->data(),
+  DEBUG_LOG("Initing tesseract api with (language: '%s', tessdata: '%s')", options->language->data(),
             options->tessdata->data());
   int r = api.Init(options->tessdata->data(), options->language->data(), tesseract::OEM_DEFAULT, NULL, 0, NULL, NULL,
                    false);
@@ -368,7 +375,7 @@ void ParseOcrOptions(OcrOptions &target, const Local<Object>& options) {
   std::list<Area *> *rects = NULL;
   std::list<Range *> *ranges = NULL;
 
-  Local<Value> lang_value = Nan::Get(options, Nan::New("lang").ToLocalChecked()).ToLocalChecked();
+  Local<Value> lang_value = Nan::Get(options, Nan::New("language").ToLocalChecked()).ToLocalChecked();
   if (lang_value->IsString()) {
     String::Utf8Value str(lang_value);
     if (str.length() > 0) {
