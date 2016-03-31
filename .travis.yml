@@ -46,8 +46,8 @@ before_install:
 #  - if [[ $LINUX ]]; then sudo sh cmake-3.5.1-Linux-x86_64.sh --skip-license --prefix=/usr; fi
   # install cmake tesseract for osx
   - if [[ $OSX ]]; then brew update; fi
-#  - if [[ $OSX ]]; brew upgrade cmake; fi
-  - if [[ $OSX ]]; brew install tesseract; fi
+#  - if [[ $OSX ]]; then brew upgrade cmake; fi
+  - if [[ $OSX ]]; then brew install tesseract; fi
   # install tessdata
 #  - wget https://tesseract-ocr.googlecode.com/files/tesseract-ocr-3.02.eng.tar.gz
 #  - tar -zxvf tesseract-ocr-3.02.eng.tar.gz
