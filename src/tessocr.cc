@@ -13,14 +13,86 @@ using namespace v8;
 
 #include "tessocr.h"
 
+NAN_METHOD(Tokenize) {
+  ENTER_METHOD(3);
+
+  Local<Object> buffer;
+  unsigned char *data = NULL;
+  size_t length = 0;
+  std::string *path = NULL;
+
+  if (info[0]->IsString()) {
+    String::Utf8Value str(info[0]->ToString());
+    path = new std::string(*str);
+  } else if (Buffer::HasInstance(info[0])) {
+    buffer = info[0]->ToObject();
+    data = (unsigned char *) node::Buffer::Data(buffer);
+    length = (size_t) node::Buffer::Length(buffer);
+  } else {
+    THROW_BAD_ARGS("Argument 0 must be a buffer or string");
+  }
+
+  if (!info[1]->IsObject()) {
+    THROW_BAD_ARGS("Argument 1 must be a object");
+  }
+  Local<Object> options = info[1]->ToObject();
+  CALLBACK_ARG(2);
+
+  TokenizeBaton *baton = new TokenizeBaton();
+
+  baton->options = ParseTokenizeOptions(options);
+
+  if (path) {
+    baton->path = path;
+  } else {
+    baton->buffer.Reset(buffer);
+    baton->data = data;
+    baton->length = length;
+  }
+
+  baton->callback = new Nan::Callback(callback);
+
+  uv_work_t *req = new uv_work_t;
+  req->data = baton;
+
+  uv_queue_work(uv_default_loop(), req, __eio_tokenize, __eio_tokenize_done);
+
+  info.GetReturnValue().SetUndefined();
+}
+
+TokenizeOptions *ParseTokenizeOptions(const Local<Object>& options) {
+  TokenizeOptions * answer = new TokenizeOptions();
+
+  ParseOcrOptions(*answer, options);
+
+  int level = tesseract::RIL_TEXTLINE;
+  bool textOnly = true;
+
+  Local<Value> level_value = Nan::Get(options, Nan::New("level").ToLocalChecked()).ToLocalChecked();
+  if (level_value->IsNumber()) {
+    level = (int) level_value->ToInteger()->Value();
+  }
+
+  Local<Value> text_only_value = Nan::Get(options, Nan::New("textOnly").ToLocalChecked()).ToLocalChecked();
+  if (text_only_value->IsBoolean()) {
+    textOnly = text_only_value->ToBoolean()->Value();
+  }
+
+  answer->level = level;
+  answer->textOnly = textOnly;
+
+  return answer;
+}
 
 void __eio_tokenize(uv_work_t *req) {
   TokenizeBaton *baton = static_cast<TokenizeBaton *>(req->data);
+  TokenizeOptions *options = baton->options;
+
   tesseract::TessBaseAPI api;
   TIME_BEGIN();
-  DEBUG_LOG("Initializing tesseract api with (lang: '%s', tessdata: '%s')", baton->language->data(),
-            baton->tessdata->data());
-  int r = api.Init(baton->tessdata->data(), baton->language->data(), tesseract::OEM_DEFAULT, NULL, 0, NULL, NULL,
+  DEBUG_LOG("Initializing tesseract api with (lang: '%s', tessdata: '%s')", options->language->data(),
+            options->tessdata->data());
+  int r = api.Init(options->tessdata->data(), options->language->data(), tesseract::OEM_DEFAULT, NULL, 0, NULL, NULL,
                    false);
 
   if (r != 0) {
@@ -45,23 +117,34 @@ void __eio_tokenize(uv_work_t *req) {
 
   api.SetImage(pix);
 
-  if (baton->psm) {
-    DEBUG_LOG("Setting psm to %d", baton->psm);
-    api.SetPageSegMode((tesseract::PageSegMode) baton->psm);
+  if (options->psm) {
+    DEBUG_LOG("Setting psm to %d", options->psm);
+    api.SetPageSegMode((tesseract::PageSegMode) options->psm);
   }
 
-  if (baton->rect) {
-    DEBUG_LOG("Setting rect to (%d, %d, %d, %d)", baton->rect[0], baton->rect[1], baton->rect[2], baton->rect[3]);
-    api.SetRectangle(baton->rect[0], baton->rect[1], baton->rect[2], baton->rect[3]);
+  if (options->rects && options->rects->size() > 0) {
+    for (std::list<Area *>::iterator it = options->rects->begin(); it != options->rects->end(); ++it) {
+      Area *rect = *it;
+      DEBUG_LOG("Processing with rect (%d, %d, %d, %d)", rect->x, rect->y, rect->w, rect->h);
+      api.SetRectangle(rect->x, rect->y, rect->w, rect->h);
+
+      TessTokenize(api, *baton->options, baton->results);
+    }
+  } else {
+    TessTokenize(api, *baton->options, baton->results);
   }
 
-  TIME_COUNT();
-  DEBUG_LOG("Tokenize image components wirh (level: %d, text_only: %d)", baton->level, baton->textOnly);
-  Boxa *boxes = api.GetComponentImages((tesseract::PageIteratorLevel) baton->level, baton->textOnly, NULL, NULL);
+  api.End();
+  pixDestroy(&pix);
+  TIME_END();
+}
+
+void TessTokenize(tesseract::TessBaseAPI &api, TokenizeOptions &options, std::list<TokenizeResult *> &results) {
+  DEBUG_LOG("Tokenize image components with (level: %d, text_only: %d)", options.level, options.textOnly);
+  Boxa *boxes = api.GetComponentImages((tesseract::PageIteratorLevel) options.level, options.textOnly, NULL, NULL);
   DEBUG_LOG("Found %d image components.", boxes->n);
-  TIME_COUNT();
   for (int i = 0; i < boxes->n; i++) {
-    if (rule_filter(baton->rules, baton->rules_count, boxes->n, i)) {
+//    if (RuleFilter(options.ranges, boxes->n, i)) {
       BOX *box = boxaGetBox(boxes, i, L_CLONE);
       TokenizeResult *item = new TokenizeResult();
       item->x = box->x;
@@ -69,12 +152,9 @@ void __eio_tokenize(uv_work_t *req) {
       item->w = box->w;
       item->h = box->h;
       item->confidence = api.MeanTextConf();
-      baton->results.push_back(item);
-    }
+      results.push_back(item);
+//    }
   }
-  api.End();
-  pixDestroy(&pix);
-  TIME_END();
 }
 
 void __eio_tokenize_done(uv_work_t *req, int status) {
@@ -121,13 +201,68 @@ void __eio_tokenize_done(uv_work_t *req, int status) {
   delete req;
 }
 
+
+NAN_METHOD(Recognize) {
+  ENTER_METHOD(3);
+
+  Local<Object> buffer;
+  unsigned char *data = NULL;
+  size_t length = 0;
+  std::string *path = NULL;
+
+  if (info[0]->IsString()) {
+    String::Utf8Value str(info[0]->ToString());
+    path = new std::string(*str);
+  } else if (Buffer::HasInstance(info[0])) {
+    buffer = info[0]->ToObject();
+    data = (unsigned char *) node::Buffer::Data(buffer);
+    length = (size_t) node::Buffer::Length(buffer);
+  } else {
+    THROW_BAD_ARGS("Argument 0 must be a buffer or string");
+  }
+
+  if (!info[1]->IsObject()) {
+    THROW_BAD_ARGS("Argument 1 must be a object");
+  }
+  Local<Object> options = info[1]->ToObject();
+  CALLBACK_ARG(2);
+
+  RecognizeBaton *baton = new RecognizeBaton();
+
+  baton->options = ParseRecognizeOptions(options);
+
+  if (path) {
+    baton->path = path;
+  } else {
+    baton->buffer.Reset(buffer);
+    baton->data = data;
+    baton->length = length;
+  }
+
+  baton->callback = new Nan::Callback(callback);
+
+  uv_work_t *req = new uv_work_t;
+  req->data = baton;
+
+  uv_queue_work(uv_default_loop(), req, __eio_recognize, __eio_recognize_done);
+
+  info.GetReturnValue().SetUndefined();
+}
+
+RecognizeOptions *ParseRecognizeOptions(const Local<Object>& options) {
+  RecognizeOptions * answer = new RecognizeOptions();
+  ParseOcrOptions(*answer, options);
+  return answer;
+}
+
 void __eio_recognize(uv_work_t *req) {
   RecognizeBaton *baton = static_cast<RecognizeBaton *>(req->data);
+  RecognizeOptions *options = baton->options;
   tesseract::TessBaseAPI api;
   TIME_BEGIN();
-  DEBUG_LOG("Initing tesseract api with (lang: '%s', tessdata: '%s')", baton->language->data(),
-            baton->tessdata->data());
-  int r = api.Init(baton->tessdata->data(), baton->language->data(), tesseract::OEM_DEFAULT, NULL, 0, NULL, NULL,
+  DEBUG_LOG("Initing tesseract api with (lang: '%s', tessdata: '%s')", options->language->data(),
+            options->tessdata->data());
+  int r = api.Init(options->tessdata->data(), options->language->data(), tesseract::OEM_DEFAULT, NULL, 0, NULL, NULL,
                    false);
 
   if (r != 0) {
@@ -152,37 +287,17 @@ void __eio_recognize(uv_work_t *req) {
 
   api.SetImage(pix);
 
-  if (baton->psm) {
-    DEBUG_LOG("Setting psm to %d", baton->psm);
-    api.SetPageSegMode((tesseract::PageSegMode) baton->psm);
-  }
+  baton->result.clear();
+  if (options->rects) {
+    for (std::list<Area *>::iterator it = options->rects->begin(); it != options->rects->end(); ++it) {
+      Area *rect = *it;
+      DEBUG_LOG("Processing with rect (%d, %d, %d, %d)", rect->x, rect->y, rect->w, rect->h);
+      api.SetRectangle(rect->x, rect->y, rect->w, rect->h);
 
-  TIME_COUNT();
-  if (baton->prm == PRM_TEXTLINE) {
-    DEBUG_LOG("Recognizing in text line mode");
-    Boxa *boxes = api.GetComponentImages(tesseract::RIL_TEXTLINE, true, NULL, NULL);
-    DEBUG_LOG("Found %d textline image components.", boxes->n);
-    TIME_COUNT();
-    DEBUG_LOG("Recognizing textline image components");
-    std::string *result = new std::string();
-    for (int i = 0; i < boxes->n; i++) {
-      if (rule_filter(baton->rules, baton->rules_count, boxes->n, i)) {
-        BOX *box = boxaGetBox(boxes, i, L_CLONE);
-        api.SetRectangle(box->x, box->y, box->w, box->h);
-        char *line = api.GetUTF8Text();
-        result->append(line);
-//        int conf = api.MeanTextConf();
-//        fprintf(stdout, "Box[%d]: x=%d, y=%d, w=%d, h=%d, confidence: %d, text: %s", i, box->x, box->y, box->w, box->h, conf, line);
-      }
+      baton->result.append(api.GetUTF8Text());
     }
-    baton->result = result;
   } else {
-    DEBUG_LOG("Recognizing in page mode");
-    if (baton->rect) {
-      DEBUG_LOG("Setting rect to (%d, %d, %d, %d)", baton->rect[0], baton->rect[1], baton->rect[2], baton->rect[3]);
-      api.SetRectangle(baton->rect[0], baton->rect[1], baton->rect[2], baton->rect[3]);
-    }
-    baton->result = new std::string(api.GetUTF8Text());
+    baton->result.append(api.GetUTF8Text());
   }
 
   TIME_END();
@@ -210,8 +325,8 @@ void __eio_recognize_done(uv_work_t *req, int status) {
         argv[1] = Nan::Undefined();
       } else {
         Local<Value> result = Nan::Undefined();
-        if (baton->result) {
-          result = Nan::New<String>(baton->result->data(), baton->result->length()).ToLocalChecked();
+        if (baton->result.length()) {
+          result = Nan::New<String>(baton->result.c_str()).ToLocalChecked();
         }
         argv[0] = Nan::Undefined();
         argv[1] = result;
@@ -230,39 +345,13 @@ void __eio_recognize_done(uv_work_t *req, int status) {
   delete req;
 }
 
-void ExtractParameters(Nan::NAN_METHOD_ARGS_TYPE &info, OcrBaton *baton) {
 
-  Local<Object> buffer;
-  unsigned char *data = NULL;
-  size_t length = 0;
-  std::string *path = NULL;
-
-  if (info[0]->IsString()) {
-    String::Utf8Value str(info[0]->ToString());
-    path = new std::string(*str);
-  } else if (Buffer::HasInstance(info[0])) {
-    buffer = info[0]->ToObject();
-    data = (unsigned char *) node::Buffer::Data(buffer);
-    length = (size_t) node::Buffer::Length(buffer);
-  } else {
-    THROW_BAD_ARGS("Argument 0 must be a buffer or string");
-  }
-
-  if (!info[1]->IsObject()) {
-    THROW_BAD_ARGS("Argument 1 must be a object");
-  }
-  Local<Object> options = info[1]->ToObject();
-  CALLBACK_ARG(2);
-
-  // ********************************************************************************************************
-  // * Decode Options
-  // ********************************************************************************************************
+void ParseOcrOptions(OcrOptions &target, const Local<Object>& options) {
   std::string *language = new std::string("eng");
   std::string *tessdata = new std::string("/usr/local/share/tessdata/");
   int psm = tesseract::PSM_AUTO;
-  int *rect = NULL;
-  int **rules = NULL;
-  unsigned int rules_count = 0;
+  std::list<Area *> *rects = NULL;
+  std::list<Range *> *ranges = NULL;
 
   Local<Value> lang_value = Nan::Get(options, Nan::New("lang").ToLocalChecked()).ToLocalChecked();
   if (lang_value->IsString()) {
@@ -285,263 +374,91 @@ void ExtractParameters(Nan::NAN_METHOD_ARGS_TYPE &info, OcrBaton *baton) {
     psm = (int) psm_value->ToInteger()->Value();
   }
 
-  Local<Value> box_value = Nan::Get(options, Nan::New("rect").ToLocalChecked()).ToLocalChecked();
-  if (box_value->IsArray()) {
-    Handle<Object> box = box_value->ToObject();
-    unsigned int len = box->Get(Nan::New("length").ToLocalChecked())->ToObject()->Uint32Value();
-    if (len == 4) {
-      rect = new int[len];
-      for (unsigned int i = 0; i < len; i++) {
-        Local<Value> element = box->Get(i);
-        if (element->IsNumber()) {
-          rect[i] = (int) element->ToInteger()->Value();
-        }
-      }
-    }
-  }
-
-  Local<Value> lines_value = Nan::Get(options, Nan::New("lines").ToLocalChecked()).ToLocalChecked();
-  if (lines_value->IsArray()) {
-    Handle<Object> lines_object = lines_value->ToObject();
-    unsigned int len = rules_count = lines_object->Get(Nan::New("length").ToLocalChecked())->ToObject()->Uint32Value();
-    rules = new int *[len];
-    INFO_LOG("Init lines: %d", len);
+  Local<Value> rects_value = Nan::Get(options, Nan::New("rects").ToLocalChecked()).ToLocalChecked();
+  if (rects_value->IsArray()) {
+    Handle<Object> rects_object = rects_value->ToObject();
+    unsigned int len = rects_object->Get(Nan::New("length").ToLocalChecked())->ToObject()->Uint32Value();
+    rects = new std::list<Area *>();
+    DEBUG_LOG("Using rects: %d", len);
     for (unsigned int i = 0; i < len; i++) {
-      rules[i] = 0;
-      Local<Value> rule = lines_object->Get(i);
-      if (rule->IsNumber()) {
-        rules[i] = new int[2];
-        rules[i][0] = rule->ToObject()->Int32Value();
-        rules[i][1] = rules[i][0];
-      } else if (rule->IsArray()) {
-        Local<Object> obj = rule->ToObject();
+      Local<Value> r = rects_object->Get(i);
+      if (r->IsArray()) {
+        Local<Object> obj = r->ToObject();
         unsigned int n = obj->Get(Nan::New("length").ToLocalChecked())->ToObject()->Uint32Value();
-        if (n > 0) {
-          rules[i] = new int[2];
-          rules[i][0] = (int) obj->Get(0)->ToInteger()->Value();
-          rules[i][1] = n > 1 ? (int) obj->Get(1)->ToInteger()->Value() : rules[i][0];
-        }
-      }
-      INFO_LOG("Line %d: (%d, %d)", i, rules[i][0], rules[i][1]);
-    }
-  }
-
-  baton->rect = rect;
-
-  baton->language = language;
-  baton->tessdata = tessdata;
-  baton->psm = psm;
-  baton->rules = rules;
-  baton->rules_count = rules_count;
-
-  if (path) {
-    baton->path = path;
-  } else {
-    baton->buffer.Reset(buffer);
-    baton->data = data;
-    baton->length = length;
-  }
-
-  baton->callback = new Nan::Callback(callback);
-}
-
-NAN_METHOD(Tokenize) {
-  ENTER_METHOD(3);
-
-  if (!info[1]->IsObject()) {
-    THROW_BAD_ARGS("Argument 1 must be a object");
-  }
-  Local<Object> options = info[1]->ToObject();
-
-  int level = tesseract::RIL_TEXTLINE;
-  bool textOnly = true;
-
-  Local<Value> level_value = Nan::Get(options, Nan::New("level").ToLocalChecked()).ToLocalChecked();
-  if (level_value->IsNumber()) {
-    level = (int) level_value->ToInteger()->Value();
-  }
-
-  Local<Value> text_only_value = Nan::Get(options, Nan::New("textOnly").ToLocalChecked()).ToLocalChecked();
-  if (text_only_value->IsBoolean()) {
-    textOnly = text_only_value->ToBoolean()->Value();
-  }
-
-  TokenizeBaton *baton = new TokenizeBaton();
-  strcpy(baton->errstring, "");
-
-  ExtractParameters(info, baton);
-
-  baton->level = level;
-  baton->textOnly = textOnly;
-
-  uv_work_t *req = new uv_work_t;
-  req->data = baton;
-
-  uv_queue_work(uv_default_loop(), req, __eio_tokenize, __eio_tokenize_done);
-
-  info.GetReturnValue().SetUndefined();
-}
-
-NAN_METHOD(Recognize) {
-  ENTER_METHOD(3);
-
-  Local<Object> buffer;
-  unsigned char *data = NULL;
-  size_t length = 0;
-  std::string *path = NULL;
-
-  if (info[0]->IsString()) {
-    String::Utf8Value str(info[0]->ToString());
-    path = new std::string(*str);
-  } else if (Buffer::HasInstance(info[0])) {
-    buffer = info[0]->ToObject();
-    data = (unsigned char *) node::Buffer::Data(buffer);
-    length = (size_t) node::Buffer::Length(buffer);
-  } else {
-    THROW_BAD_ARGS("Argument 0 must be a buffer or string");
-  }
-
-  if (!info[1]->IsObject()) {
-    THROW_BAD_ARGS("Argument 1 must be a object");
-  }
-  Local<Object> options = info[1]->ToObject();
-  CALLBACK_ARG(2);
-
-  // ********************************************************************************************************
-  // * Decode Options
-  // ********************************************************************************************************
-  std::string *language = new std::string("eng");
-  std::string *tessdata = new std::string("/usr/local/share/tessdata/");
-  int psm = 3;
-  int prm = 0;
-  int *rect = NULL;
-  int **rules = NULL;
-  unsigned int rules_count = 0;
-
-  Local<Value> lang_value = Nan::Get(options, Nan::New("lang").ToLocalChecked()).ToLocalChecked();
-  if (lang_value->IsString()) {
-    String::Utf8Value str(lang_value);
-    if (str.length() > 0) {
-      language = new std::string(*str);
-    }
-  }
-
-  Local<Value> tessdata_value = Nan::Get(options, Nan::New("tessdata").ToLocalChecked()).ToLocalChecked();
-  if (tessdata_value->IsString()) {
-    String::Utf8Value str(tessdata_value);
-    if (str.length() < 4095) {
-      tessdata = new std::string(*str);
-    }
-  }
-
-  Local<Value> psm_value = Nan::Get(options, Nan::New("psm").ToLocalChecked()).ToLocalChecked();
-  if (psm_value->IsNumber()) {
-    psm = (int) psm_value->ToInteger()->Value();
-  }
-
-  Local<Value> prm_value = Nan::Get(options, Nan::New("prm").ToLocalChecked()).ToLocalChecked();
-  if (prm_value->IsNumber()) {
-    prm = (int) prm_value->ToInteger()->Value();
-  }
-
-  Local<Value> box_value = Nan::Get(options, Nan::New("rect").ToLocalChecked()).ToLocalChecked();
-  if (box_value->IsArray()) {
-    Handle<Object> box = box_value->ToObject();
-    unsigned int len = box->Get(Nan::New("length").ToLocalChecked())->ToObject()->Uint32Value();
-    if (len == 4) {
-      rect = new int[len];
-      for (unsigned int i = 0; i < len; i++) {
-        Local<Value> element = box->Get(i);
-        if (element->IsNumber()) {
-          rect[i] = (int) element->ToInteger()->Value();
+        if (n == 4) {
+          Area *rect = new Area();
+          rect->x = (int) obj->Get(0)->ToInteger()->Value();
+          rect->y = (int) obj->Get(1)->ToInteger()->Value();
+          rect->w = (int) obj->Get(2)->ToInteger()->Value();
+          rect->h = (int) obj->Get(3)->ToInteger()->Value();
+          rects->push_back(rect);
+          DEBUG_LOG("Area %d: (%d, %d, %d, %d)", i, rect->x, rect->y, rect->w, rect->h);
         }
       }
     }
   }
 
-  Local<Value> lines_value = Nan::Get(options, Nan::New("lines").ToLocalChecked()).ToLocalChecked();
-  if (lines_value->IsArray()) {
-    Handle<Object> lines_object = lines_value->ToObject();
-    unsigned int len = rules_count = lines_object->Get(Nan::New("length").ToLocalChecked())->ToObject()->Uint32Value();
-    rules = new int *[len];
-    INFO_LOG("Init lines: %d", len);
-    for (unsigned int i = 0; i < len; i++) {
-      rules[i] = 0;
-      Local<Value> rule = lines_object->Get(i);
-      if (rule->IsNumber()) {
-        rules[i] = new int[2];
-        rules[i][0] = rule->ToObject()->Int32Value();
-        rules[i][1] = rules[i][0];
-      } else if (rule->IsArray()) {
-        Local<Object> obj = rule->ToObject();
-        unsigned int n = obj->Get(Nan::New("length").ToLocalChecked())->ToObject()->Uint32Value();
-        if (n > 0) {
-          rules[i] = new int[2];
-          rules[i][0] = (int) obj->Get(0)->ToInteger()->Value();
-          rules[i][1] = n > 1 ? (int) obj->Get(1)->ToInteger()->Value() : rules[i][0];
-        }
-      }
-      INFO_LOG("Line %d: (%d, %d)", i, rules[i][0], rules[i][1]);
-    }
-  }
+//  Local<Value> ranges_value = Nan::Get(options, Nan::New("ranges").ToLocalChecked()).ToLocalChecked();
+//  if (ranges_value->IsArray()) {
+//    Handle<Object> ranges_object = ranges_value->ToObject();
+//    unsigned int len = ranges_object->Get(Nan::New("length").ToLocalChecked())->ToObject()->Uint32Value();
+//    ranges = new std::list<Range *>();
+//    INFO_LOG("Init ranges: %d", len);
+//    for (unsigned int i = 0; i < len; i++) {
+//      Range *range = NULL;
+//      Local<Value> range_value = ranges_object->Get(i);
+//      if (range_value->IsNumber()) {
+//        range = new Range(range_value->ToObject()->Int32Value());
+//      } else if (range_value->IsArray()) {
+//        Local<Object> obj = range_value->ToObject();
+//        unsigned int n = obj->Get(Nan::New("length").ToLocalChecked())->ToObject()->Uint32Value();
+//        if (n > 0) {
+//          range = new Range((int) obj->Get(0)->ToInteger()->Value());
+//        }
+//        if (n > 1) {
+//          range->to = (int) obj->Get(1)->ToInteger()->Value();
+//        }
+//      }
+//      if (range) {
+//        ranges->push_back(range);
+//        INFO_LOG("Range %d: (%d, %d)", i, range->from, range->to);
+//      }
+//    }
+//  }
 
-
-  // ********************************************************************************************************
-
-  RecognizeBaton *baton = new RecognizeBaton();
-
-  baton->result = NULL;
-  baton->rect = rect;
-
-  baton->language = language;
-  baton->tessdata = tessdata;
-  baton->psm = psm;
-  baton->prm = prm;
-  baton->rules = rules;
-  baton->rules_count = rules_count;
-
-  if (path) {
-    baton->path = path;
-  } else {
-    baton->buffer.Reset(buffer);
-    baton->data = data;
-    baton->length = length;
-  }
-
-  baton->callback = new Nan::Callback(callback);
-
-  uv_work_t *req = new uv_work_t;
-  req->data = baton;
-
-  uv_queue_work(uv_default_loop(), req, __eio_recognize, __eio_recognize_done);
-
-  info.GetReturnValue().SetUndefined();
+  target.rects = rects;
+  target.language = language;
+  target.tessdata = tessdata;
+  target.psm = psm;
+  target.ranges = ranges;
 }
 
-bool rule_filter(int **rules, int rules_count, int lines, int line) {
-  if (!rules || !rules_count) return true;
-
-  if (!lines || line >= lines || line < 0) return false;
-
-  for (int i = 0; i < rules_count; i++) {
-    int a = rules[i][0];
-    int b = rules[i][1];
-    a = a < 0 ? a + lines : a;
-    b = b < 0 ? b + lines : b;
-
-    if ((line >= a && line <= b) || (line >= b && line <= a)) {
-      return true;
-    }
-  }
-
-  return false;
-}
+//bool RuleFilter(std::list<Range *> *ranges, int count, int line) {
+//  if (!ranges || !ranges->size()) return true;
+//
+//  if (!count || line >= count || line < 0) return false;
+//
+//  for (std::list<Range *>::iterator it = ranges->begin(); it != ranges->end(); ++it) {
+//    Range *range = *it;
+//    int from = range->from < 0 ? range->from + count: range->from;
+//    int to = range->to < 0 ? range->to + count : range->to;
+//    if ((line >= from && line <= to) || (line >= to && line <= from)) {
+//      return true;
+//    }
+//  }
+//
+//  return false;
+//}
 
 extern "C" {
 static void Initialize(Local<Object> target) {
   Nan::HandleScope scope;
   Nan::SetMethod(target, "tokenize", Tokenize);
   Nan::SetMethod(target, "recognize", Recognize);
+
+  NODE_DEFINE_CONSTANT(target, TESSERACT_VERSION);
+
+  Nan::Set(target, Nan::New<String>("tesseractVersion").ToLocalChecked(), Nan::New<String>(tesseract::TessBaseAPI::Version()).ToLocalChecked());
 }
 
 NODE_MODULE(tessocr, Initialize) ;

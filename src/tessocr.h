@@ -11,20 +11,16 @@
 
 #include "helpers.h"
 
-#define DEBUG
+//#define DEBUG
 #define INFO
-#define PROFILE
-#define COMP
+//#define PROFILE
 
 using namespace node;
 using namespace v8;
 
 #define ERROR_STRING_SIZE 1024
 
-enum PageRecognizeMode {
-  PRM_PAGE,     // Page mode
-  PRM_TEXTLINE  // Paragraph within a block.
-};
+NAN_METHOD(Version);
 
 NAN_METHOD(Tokenize);
 
@@ -45,97 +41,101 @@ struct Area {
   int h;
 };
 
-
-struct TokenizeResult: Area {
+struct TokenizeResult : Area {
   int confidence;
+};
+
+struct Range {
+  int from;
+  int to;
+
+  Range() {}
+  Range(int from, int to): from(from), to(to) {}
+  Range(int from): from(from), to(from) {}
+};
+
+struct OcrOptions {
+  std::string *language;
+  std::string *tessdata;
+  int psm;
+  std::list<Area *> *rects;
+  std::list<Range *> *ranges;
+
+  virtual ~OcrOptions() {
+    if (language) delete language;
+    if (tessdata) delete tessdata;
+    if (rects) {
+      for (std::list<Area *>::iterator it = rects->begin(); it != rects->end(); ++it) {
+        delete *it;
+      }
+      delete rects;
+    }
+    if (ranges) {
+      for (std::list<Range *>::iterator it = ranges->begin(); it != ranges->end(); ++it) {
+        delete *it;
+      }
+      delete ranges;
+    }
+  }
+};
+
+struct TokenizeOptions : OcrOptions {
+  int level;
+  bool textOnly;
+};
+
+struct RecognizeOptions : OcrOptions {
 };
 
 struct OcrBaton {
   char errstring[ERROR_STRING_SIZE];
-  std::string *language;
-  std::string *tessdata;
-  int psm;
-  int *rect;
-  std::list<Area *> *rects;
-  int **rules;
-  int rules_count;
   std::string *path;
   Nan::Callback *callback;
   Nan::Persistent<Object> buffer;
   unsigned char *data;
   size_t length;
 
+  OcrBaton() {
+    strcpy(errstring, "");
+  }
+
   virtual ~OcrBaton() {
     buffer.Reset();
-    data = 0;
-    length = 0;
-
-    psm = 0;
-
-    if (language) delete language;
-    language = 0;
-    if (tessdata) delete tessdata;
-    tessdata = 0;
-
-    if (rect) {
-      delete[] rect;
-    }
-    rect = 0;
-
-    if (rules) {
-      for (int i = 0; i < rules_count; i++) {
-        delete[] rules[i];
-      }
-      delete[] rules;
-    }
-    rules = 0;
-    rules_count = 0;
-
     if (path) delete path;
-    path = 0;
     if (callback) delete callback;
-    callback = 0;
-
-    if (rects) {
-      for (std::list<Area *>::iterator it = rects->begin(); it != rects->end(); ++it) {
-        delete *it;
-      }
-      delete rects;
-      rects = 0;
-    }
   }
 };
 
-struct TokenizeBaton: OcrBaton {
-  int level;
-  bool textOnly;
+struct TokenizeBaton : OcrBaton {
+  TokenizeOptions *options;
   std::list<TokenizeResult *> results;
 
   virtual ~TokenizeBaton() {
-    level = 0;
-    textOnly = 0;
+    if (options) delete options;
     for (std::list<TokenizeResult *>::iterator it = results.begin(); it != results.end(); ++it) {
       delete *it;
     }
   }
 };
 
-struct RecognizeBaton:OcrBaton {
-  int prm;
-
-  std::string *result;
+struct RecognizeBaton : OcrBaton {
+  RecognizeOptions *options;
+  std::string result;
 
   virtual ~RecognizeBaton() {
-    prm = 0;
-    if (result) delete result;
-    result = 0;
+    if (options) delete options;
   }
 };
 
+void ParseOcrOptions(OcrOptions &target, const Local<Object> &options);
 
-bool rule_filter(int **rules, int rules_count, int lines, int line);
+TokenizeOptions *ParseTokenizeOptions(const Local<Object> &options);
 
-Local<Value> ocr_error(int code);
+RecognizeOptions *ParseRecognizeOptions(const Local<Object> &options);
+
+//bool RuleFilter(std::list<Range *> *ranges, int count, int line);
+
+void TessTokenize(tesseract::TessBaseAPI &api, TokenizeOptions &options, std::list<TokenizeResult *> &results);
 
 #define CHECK_TESS(r) \
   if (r != 0) { \
