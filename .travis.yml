@@ -70,5 +70,5 @@ install:
 
 script:
   # test our module
-  - node tessocr.js
+  - node .
   - npm test
