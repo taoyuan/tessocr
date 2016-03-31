@@ -115,6 +115,9 @@ void __eio_tokenize(uv_work_t *req) {
     return;
   }
 
+  baton->dimensions[0] = pix->w;
+  baton->dimensions[1] = pix->h;
+
   api.SetImage(pix);
 
   if (options->psm) {
@@ -124,9 +127,11 @@ void __eio_tokenize(uv_work_t *req) {
 
   if (options->rects && options->rects->size() > 0) {
     for (std::list<Area *>::iterator it = options->rects->begin(); it != options->rects->end(); ++it) {
-      Area *rect = *it;
-      DEBUG_LOG("Processing with rect (%d, %d, %d, %d)", rect->x, rect->y, rect->w, rect->h);
-      api.SetRectangle(rect->x, rect->y, rect->w, rect->h);
+      Area rect;
+      CalcRect(rect, **it, pix->w, pix->h);
+
+      DEBUG_LOG("Processing image (%d, %d) with rect (%d, %d, %d, %d)", pix->w, pix->h, rect.x, rect.y, rect.w, rect.h);
+      api.SetRectangle(rect.x, rect.y, rect.w, rect.h);
 
       TessTokenize(api, *baton->options, baton->results);
     }
@@ -173,7 +178,14 @@ void __eio_tokenize_done(uv_work_t *req, int status) {
         argv[0] = Nan::Error(Nan::New<String>(baton->errstring).ToLocalChecked());
         argv[1] = Nan::Undefined();
       } else {
-        Local<Array> results = Nan::New<Array>();
+        Local<Object> result = Nan::New<Object>();
+        // dimensions
+        Local<Array> dimensions = Nan::New<Array>();
+        Nan::Set(dimensions, 0, Nan::New<Integer>(baton->dimensions[0]));
+        Nan::Set(dimensions, 1, Nan::New<Integer>(baton->dimensions[1]));
+        Nan::Set(result, Nan::New<String>("dimensions").ToLocalChecked(), dimensions);
+        // boxes
+        Local<Array> boxes = Nan::New<Array>();
         unsigned int i = 0;
         for (std::list<TokenizeResult *>::iterator it = baton->results.begin(); it != baton->results.end(); ++it, i++) {
           Local<Object> item = Nan::New<Object>();
@@ -182,10 +194,11 @@ void __eio_tokenize_done(uv_work_t *req, int status) {
           Nan::Set(item, Nan::New<String>("w").ToLocalChecked(), Nan::New<Integer>((*it)->w));
           Nan::Set(item, Nan::New<String>("h").ToLocalChecked(), Nan::New<Integer>((*it)->h));
           Nan::Set(item, Nan::New<String>("confidence").ToLocalChecked(), Nan::New<Integer>((*it)->confidence));
-          Nan::Set(results, i, item);
+          Nan::Set(boxes, i, item);
         }
+        Nan::Set(result, Nan::New<String>("boxes").ToLocalChecked(), boxes);
         argv[0] = Nan::Undefined();
-        argv[1] = results;
+        argv[1] = result;
       }
 
       DEBUG_LOG("call tokenize callback");
@@ -290,9 +303,11 @@ void __eio_recognize(uv_work_t *req) {
   baton->result.clear();
   if (options->rects) {
     for (std::list<Area *>::iterator it = options->rects->begin(); it != options->rects->end(); ++it) {
-      Area *rect = *it;
-      DEBUG_LOG("Processing with rect (%d, %d, %d, %d)", rect->x, rect->y, rect->w, rect->h);
-      api.SetRectangle(rect->x, rect->y, rect->w, rect->h);
+      Area rect;
+      CalcRect(rect, **it, pix->w, pix->h);
+
+      DEBUG_LOG("Processing image (%d, %d) with rect (%d, %d, %d, %d)", pix->w, pix->h, rect.x, rect.y, rect.w, rect.h);
+      api.SetRectangle(rect.x, rect.y, rect.w, rect.h);
 
       baton->result.append(api.GetUTF8Text());
     }
@@ -431,6 +446,53 @@ void ParseOcrOptions(OcrOptions &target, const Local<Object>& options) {
   target.tessdata = tessdata;
   target.psm = psm;
   target.ranges = ranges;
+}
+
+void CalcRect(Area &target, Area &source, int width, int height) {
+  int x = source.x;
+  int y = source.y;
+  int w = source.w;
+  int h = source.h;
+
+  if (w < 0) {
+    x += w;
+    w = abs(w);
+  }
+
+  if (h < 0) {
+    y += h;
+    h = abs(h);
+  }
+
+  if (x < 0) x += width;
+  if (y < 0) y += height;
+
+  if (x < 0) {
+    w += x;
+    x = 0;
+  }
+
+  if (x < 0) {
+    h += y;
+    y = 0;
+  }
+
+  if (x >= width || y >= height) {
+    x = y = w = h = 0;
+  }
+
+  if (x + w > width) {
+    w = width - x;
+  }
+
+  if (y + h > height) {
+    h = height - y;
+  }
+
+  target.x = x;
+  target.y = y;
+  target.w = w;
+  target.h = h;
 }
 
 //bool RuleFilter(std::list<Range *> *ranges, int count, int line) {

@@ -12,8 +12,8 @@
 #include "helpers.h"
 
 //#define DEBUG
-#define INFO
 //#define PROFILE
+#define INFO
 
 using namespace node;
 using namespace v8;
@@ -108,6 +108,7 @@ struct OcrBaton {
 
 struct TokenizeBaton : OcrBaton {
   TokenizeOptions *options;
+  int dimensions[2];
   std::list<TokenizeResult *> results;
 
   virtual ~TokenizeBaton() {
@@ -133,9 +134,9 @@ TokenizeOptions *ParseTokenizeOptions(const Local<Object> &options);
 
 RecognizeOptions *ParseRecognizeOptions(const Local<Object> &options);
 
-//bool RuleFilter(std::list<Range *> *ranges, int count, int line);
-
 void TessTokenize(tesseract::TessBaseAPI &api, TokenizeOptions &options, std::list<TokenizeResult *> &results);
+
+void CalcRect(Area &target, Area &source, int width, int height);
 
 #define CHECK_TESS(r) \
   if (r != 0) { \

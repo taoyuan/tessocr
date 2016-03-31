@@ -6,11 +6,9 @@ var path = require('path');
 var tessocr = require('..');
 
 var tess = tessocr.tess();
-
 var imageFile = path.join(__dirname, 'fixtures', 'hello_world.jpg');
 
 var options = {
-  // tessdata: '/'
 };
 
 describe('tessocr', function () {

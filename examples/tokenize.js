@@ -9,7 +9,7 @@ var tess = tessocr.tess();
 var fixture = fixtures[0];
 
 console.time('tokenize');
-tess.tokenize(fixture.image, {lang: fixture.lang, psm: 6, level: 2}, function (err, tokens) {
-  console.log(tokens);
+tess.tokenize(fixture.image, {lang: fixture.lang, psm: 6, level: 2}, function (err, result) {
+  console.log(result);
   console.timeEnd('tokenize');
 });
