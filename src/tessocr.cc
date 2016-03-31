@@ -456,8 +456,6 @@ static void Initialize(Local<Object> target) {
   Nan::SetMethod(target, "tokenize", Tokenize);
   Nan::SetMethod(target, "recognize", Recognize);
 
-  NODE_DEFINE_CONSTANT(target, TESSERACT_VERSION);
-
   Nan::Set(target, Nan::New<String>("tesseractVersion").ToLocalChecked(), Nan::New<String>(tesseract::TessBaseAPI::Version()).ToLocalChecked());
 }
 
