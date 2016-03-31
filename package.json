@@ -8,7 +8,7 @@
     "email": "towyuan@outlook.com",
     "url": ""
   },
-  "main": "tessocr.js",
+  "main": "lib/tessocr.js",
   "keywords": [
     "ocr",
     "tesseract"
@@ -25,6 +25,7 @@
     "node-pre-gyp"
   ],
   "devDependencies": {
+    "async": "^2.0.0-rc.2",
     "chai": "^3.5.0",
     "eslint": "^2.5.3",
     "eslint-config-xo-space": "^0.11.0",
@@ -49,7 +50,6 @@
   "scripts": {
     "ncmake": "ncmake -C 11 --build build",
     "install": "node-pre-gyp rebuild --fallback-to-build",
-    "prepublish": "gulp prepublish",
     "test": "gulp"
   },
   "binary": {

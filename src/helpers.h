@@ -50,7 +50,11 @@ inline static void setConst(Handle<Object> obj, const char* const name, Handle<V
 	CLASS* that = static_cast<CLASS*>(External::Cast(*info[0])->Value()); \
 	that->attach(info.This())
 
-#define ENTER_METHOD(CLASS, MIN_ARGS) \
+#define ENTER_METHOD(MIN_ARGS) \
+	Nan::HandleScope scope;                \
+	CHECK_N_ARGS(MIN_ARGS);
+
+#define ENTER_CLASS_METHOD(CLASS, MIN_ARGS) \
 	Nan::HandleScope scope;                \
 	CHECK_N_ARGS(MIN_ARGS);           \
 	CLASS* that = Nan::ObjectWrap::Unwrap<CLASS>(info.This()); \

@@ -5,6 +5,7 @@
 #include <node.h>
 #include <node_buffer.h>
 #include <nan.h>
+#include <list>
 
 #include <tesseract/baseapi.h>
 
@@ -18,17 +19,94 @@
 using namespace node;
 using namespace v8;
 
-class Tessocr;
+#define ERROR_STRING_SIZE 1024
 
 enum PageRecognizeMode {
   PRM_PAGE,     // Page mode
   PRM_TEXTLINE  // Paragraph within a block.
 };
 
-struct TessocrBaton {
-  tesseract::TessBaseAPI *api;
+NAN_METHOD(Tokenize);
 
+void __eio_tokenize(uv_work_t *req);
+
+void __eio_tokenize_done(uv_work_t *req, int status);
+
+NAN_METHOD(Recognize);
+
+void __eio_recognize(uv_work_t *req);
+
+void __eio_recognize_done(uv_work_t *req, int status);
+
+struct TokenizeResult {
+  int x;
+  int y;
+  int w;
+  int h;
+  int confidence;
+};
+
+struct TokenizeBaton {
+  char errstring[ERROR_STRING_SIZE];
+  std::string *language;
+  std::string *tessdata;
+  int psm;
+  int level;
+  bool textOnly;
+  int *rect;
+  int **rules;
+  int rules_count;
+
+  std::string *path;
+  Nan::Callback *callback;
+  Nan::Persistent<Object> buffer;
+  unsigned char *data;
+  size_t length;
+
+  std::list<TokenizeResult *> results;
+
+  void destroy() {
+    buffer.Reset();
+    data = 0;
+    length = 0;
+
+    psm = 0;
+    level = 0;
+    textOnly = 0;
+
+    if (language) delete language;
+    language = 0;
+    if (tessdata) delete tessdata;
+    tessdata = 0;
+
+    if (rect) {
+      delete[] rect;
+    }
+    rect = 0;
+
+    if (rules) {
+      for (int i = 0; i < rules_count; i++) {
+        delete[] rules[i];
+      }
+      delete[] rules;
+    }
+    rules = 0;
+    rules_count = 0;
+
+    if (path) delete path;
+    path = 0;
+    if (callback) delete callback;
+    callback = 0;
+
+    for (std::list<TokenizeResult *>::iterator it = results.begin(); it != results.end(); ++it) {
+      delete *it;
+    }
+  }
+};
+
+struct RecognizeBaton {
   int errcode;
+  char errstring[ERROR_STRING_SIZE];
   std::string *language;
   std::string *tessdata;
   // tesseract::PageSegMode
@@ -39,7 +117,10 @@ struct TessocrBaton {
   // default is 0
   int prm;
 
-  int* rect;
+  int *rect;
+
+  int **rules;
+  int rules_count;
 
   std::string *path;
   Nan::Callback *callback;
@@ -49,7 +130,7 @@ struct TessocrBaton {
 
   std::string *result;
 
-  void reset() {
+  void destroy() {
     buffer.Reset();
     data = 0;
     length = 0;
@@ -62,10 +143,20 @@ struct TessocrBaton {
     if (tessdata) delete tessdata;
     tessdata = 0;
 
-    if(rect) {
+    if (rect) {
       delete[] rect;
       rect = 0;
     }
+
+    if (rules) {
+      for (int i = 0; i < rules_count; i++) {
+        delete[] rules[i];
+      }
+      delete[] rules;
+    }
+    rules = 0;
+    rules_count = 0;
+
     if (path) delete path;
     path = 0;
     if (callback) delete callback;
@@ -77,25 +168,14 @@ struct TessocrBaton {
 };
 
 
-class Tessocr: public Nan::ObjectWrap {
-public:
-  static void Init(Local<Object> exports);
-  static NAN_METHOD(New);
-  static NAN_METHOD(Recognize);
+bool rule_filter(int **rules, int rules_count, int lines, int line);
 
-private:
-  Tessocr();
-  ~Tessocr();
-
-private:
-  Nan::Persistent<v8::Object> This;
-  static Nan::Persistent<FunctionTemplate> constructor_template;
-};
+Local<Value> ocr_error(int code);
 
 #define CHECK_TESS(r) \
-	if (r != 0) { \
-		return Nan::ThrowError("Error code" #r); \
-	}
+  if (r != 0) { \
+    return Nan::ThrowError("Error code" #r); \
+  }
 
 #define CALLBACK_ARG(CALLBACK_ARG_IDX) \
   Local<Function> callback; \
@@ -128,13 +208,13 @@ private:
 
 #define TIME_COUNT() \
   __end = clock(); \
-	fprintf(stderr, "Elapse: %f\n", (__end - __stop) / (double) CLOCKS_PER_SEC ); \
- 	__stop = clock(); \
+  fprintf(stderr, "Elapse: %f\n", (__end - __stop) / (double) CLOCKS_PER_SEC ); \
+  __stop = clock(); \
 
 #define TIME_END() \
   __end = clock(); \
   if (__stop > __start) TIME_COUNT() \
-	fprintf(stderr, "Elapse all: %f\n", (__end - __start) / (double) CLOCKS_PER_SEC ); \
+  fprintf(stderr, "Elapse all: %f\n", (__end - __start) / (double) CLOCKS_PER_SEC ); \
 
 #else
 #define TIME_BEGIN()
