@@ -38,41 +38,39 @@ void __eio_recognize(uv_work_t *req);
 
 void __eio_recognize_done(uv_work_t *req, int status);
 
-struct TokenizeResult {
+struct Area {
   int x;
   int y;
   int w;
   int h;
+};
+
+
+struct TokenizeResult: Area {
   int confidence;
 };
 
-struct TokenizeBaton {
+struct OcrBaton {
   char errstring[ERROR_STRING_SIZE];
   std::string *language;
   std::string *tessdata;
   int psm;
-  int level;
-  bool textOnly;
   int *rect;
+  std::list<Area *> *rects;
   int **rules;
   int rules_count;
-
   std::string *path;
   Nan::Callback *callback;
   Nan::Persistent<Object> buffer;
   unsigned char *data;
   size_t length;
 
-  std::list<TokenizeResult *> results;
-
-  void destroy() {
+  virtual ~OcrBaton() {
     buffer.Reset();
     data = 0;
     length = 0;
 
     psm = 0;
-    level = 0;
-    textOnly = 0;
 
     if (language) delete language;
     language = 0;
@@ -98,70 +96,37 @@ struct TokenizeBaton {
     if (callback) delete callback;
     callback = 0;
 
+    if (rects) {
+      for (std::list<Area *>::iterator it = rects->begin(); it != rects->end(); ++it) {
+        delete *it;
+      }
+      delete rects;
+      rects = 0;
+    }
+  }
+};
+
+struct TokenizeBaton: OcrBaton {
+  int level;
+  bool textOnly;
+  std::list<TokenizeResult *> results;
+
+  virtual ~TokenizeBaton() {
+    level = 0;
+    textOnly = 0;
     for (std::list<TokenizeResult *>::iterator it = results.begin(); it != results.end(); ++it) {
       delete *it;
     }
   }
 };
 
-struct RecognizeBaton {
-  int errcode;
-  char errstring[ERROR_STRING_SIZE];
-  std::string *language;
-  std::string *tessdata;
-  // tesseract::PageSegMode
-  int psm;
-  // Page recognize mode
-  // 0: full page recognize
-  // 1: text line recognize
-  // default is 0
+struct RecognizeBaton:OcrBaton {
   int prm;
-
-  int *rect;
-
-  int **rules;
-  int rules_count;
-
-  std::string *path;
-  Nan::Callback *callback;
-  Nan::Persistent<Object> buffer;
-  unsigned char *data;
-  size_t length;
 
   std::string *result;
 
-  void destroy() {
-    buffer.Reset();
-    data = 0;
-    length = 0;
-
-    errcode = 0;
-    psm = 0;
-
-    if (language) delete language;
-    language = 0;
-    if (tessdata) delete tessdata;
-    tessdata = 0;
-
-    if (rect) {
-      delete[] rect;
-      rect = 0;
-    }
-
-    if (rules) {
-      for (int i = 0; i < rules_count; i++) {
-        delete[] rules[i];
-      }
-      delete[] rules;
-    }
-    rules = 0;
-    rules_count = 0;
-
-    if (path) delete path;
-    path = 0;
-    if (callback) delete callback;
-    callback = 0;
-
+  virtual ~RecognizeBaton() {
+    prm = 0;
     if (result) delete result;
     result = 0;
   }

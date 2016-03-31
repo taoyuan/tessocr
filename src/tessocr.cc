@@ -89,13 +89,13 @@ void __eio_tokenize_done(uv_work_t *req, int status) {
 
       Local<Value> argv[2];
 
-      if(baton->errstring[0]) {
-        argv[0] =  Nan::Error(Nan::New<String>(baton->errstring).ToLocalChecked());
+      if (baton->errstring[0]) {
+        argv[0] = Nan::Error(Nan::New<String>(baton->errstring).ToLocalChecked());
         argv[1] = Nan::Undefined();
       } else {
         Local<Array> results = Nan::New<Array>();
         unsigned int i = 0;
-        for(std::list<TokenizeResult*>::iterator it = baton->results.begin(); it != baton->results.end(); ++it, i++) {
+        for (std::list<TokenizeResult *>::iterator it = baton->results.begin(); it != baton->results.end(); ++it, i++) {
           Local<Object> item = Nan::New<Object>();
           Nan::Set(item, Nan::New<String>("x").ToLocalChecked(), Nan::New<Integer>((*it)->x));
           Nan::Set(item, Nan::New<String>("y").ToLocalChecked(), Nan::New<Integer>((*it)->y));
@@ -117,7 +117,6 @@ void __eio_tokenize_done(uv_work_t *req, int status) {
     }
   }
 
-  baton->destroy();
   delete baton;
   delete req;
 }
@@ -130,67 +129,67 @@ void __eio_recognize(uv_work_t *req) {
             baton->tessdata->data());
   int r = api.Init(baton->tessdata->data(), baton->language->data(), tesseract::OEM_DEFAULT, NULL, 0, NULL, NULL,
                    false);
+
+  if (r != 0) {
+    snprintf(baton->errstring, sizeof(baton->errstring), "Tesseract init error with code %d", r);
+    return;
+  }
+
   TIME_COUNT();
-  if (r == 0) {
-    PIX *pix = NULL;
-    if (baton->data) {
-      DEBUG_LOG("Reading image from buffer (%d bytes)", (int) baton->length);
-      pix = pixReadMem(baton->data, baton->length);
-    } else if (baton->path) {
-      DEBUG_LOG("Reading image from %s", baton->path->data());
-      pix = pixRead(baton->path->data());
-    }
-    if (pix) {
-      api.SetImage(pix);
+  PIX *pix = NULL;
+  if (baton->data) {
+    DEBUG_LOG("Reading image from buffer (%d bytes)", (int) baton->length);
+    pix = pixReadMem(baton->data, baton->length);
+  } else if (baton->path) {
+    DEBUG_LOG("Reading image from %s", baton->path->data());
+    pix = pixRead(baton->path->data());
+  }
 
-      if (baton->psm) {
-        DEBUG_LOG("Setting psm to %d", baton->psm);
-        api.SetPageSegMode((tesseract::PageSegMode) baton->psm);
-      }
+  if (!pix) {
+    snprintf(baton->errstring, sizeof(baton->errstring), "Tesseract read image error");
+    return;
+  }
 
-      TIME_COUNT();
-      if (baton->prm == PRM_TEXTLINE) {
-        DEBUG_LOG("Recognizing in text line mode");
-        Boxa *boxes = api.GetComponentImages(tesseract::RIL_TEXTLINE, true, NULL, NULL);
-        DEBUG_LOG("Found %d textline image components.", boxes->n);
-        TIME_COUNT();
-        DEBUG_LOG("Recognizing textline image components");
-        std::string *result = new std::string();
-        for (int i = 0; i < boxes->n; i++) {
-          if (rule_filter(baton->rules, baton->rules_count, boxes->n, i)) {
-            BOX *box = boxaGetBox(boxes, i, L_CLONE);
-            api.SetRectangle(box->x, box->y, box->w, box->h);
-            char *line = api.GetUTF8Text();
-            result->append(line);
+  api.SetImage(pix);
+
+  if (baton->psm) {
+    DEBUG_LOG("Setting psm to %d", baton->psm);
+    api.SetPageSegMode((tesseract::PageSegMode) baton->psm);
+  }
+
+  TIME_COUNT();
+  if (baton->prm == PRM_TEXTLINE) {
+    DEBUG_LOG("Recognizing in text line mode");
+    Boxa *boxes = api.GetComponentImages(tesseract::RIL_TEXTLINE, true, NULL, NULL);
+    DEBUG_LOG("Found %d textline image components.", boxes->n);
+    TIME_COUNT();
+    DEBUG_LOG("Recognizing textline image components");
+    std::string *result = new std::string();
+    for (int i = 0; i < boxes->n; i++) {
+      if (rule_filter(baton->rules, baton->rules_count, boxes->n, i)) {
+        BOX *box = boxaGetBox(boxes, i, L_CLONE);
+        api.SetRectangle(box->x, box->y, box->w, box->h);
+        char *line = api.GetUTF8Text();
+        result->append(line);
 //        int conf = api.MeanTextConf();
 //        fprintf(stdout, "Box[%d]: x=%d, y=%d, w=%d, h=%d, confidence: %d, text: %s", i, box->x, box->y, box->w, box->h, conf, line);
-          }
-        }
-        baton->result = result;
-      } else {
-        DEBUG_LOG("Recognizing in page mode");
-        if (baton->rect) {
-          DEBUG_LOG("Setting rect to (%d, %d, %d, %d)", baton->rect[0], baton->rect[1], baton->rect[2], baton->rect[3]);
-          api.SetRectangle(baton->rect[0], baton->rect[1], baton->rect[2], baton->rect[3]);
-        }
-        baton->result = new std::string(api.GetUTF8Text());
       }
-
-      TIME_END();
-      DEBUG_LOG("Recognize complete");
-
-      api.End();
-      pixDestroy(&pix);
     }
-    else {
-      DEBUG_LOG("Reading image error");
-      baton->errcode = 2;
+    baton->result = result;
+  } else {
+    DEBUG_LOG("Recognizing in page mode");
+    if (baton->rect) {
+      DEBUG_LOG("Setting rect to (%d, %d, %d, %d)", baton->rect[0], baton->rect[1], baton->rect[2], baton->rect[3]);
+      api.SetRectangle(baton->rect[0], baton->rect[1], baton->rect[2], baton->rect[3]);
     }
+    baton->result = new std::string(api.GetUTF8Text());
   }
-  else {
-    DEBUG_LOG("Tesseract init error with %d", r);
-    baton->errcode = r;
-  }
+
+  TIME_END();
+  DEBUG_LOG("Recognize complete");
+
+  api.End();
+  pixDestroy(&pix);
 }
 
 void __eio_recognize_done(uv_work_t *req, int status) {
@@ -203,18 +202,22 @@ void __eio_recognize_done(uv_work_t *req, int status) {
     DEBUG_LOG("Recognize done");
 
     if (!baton->callback->IsEmpty()) {
-      Local<Value> error = Nan::Undefined();
-      if (baton->errcode != 0) {
-        error = ocr_error(baton->errcode);
-      }
-      Local<Value> result = Nan::Undefined();
-      if (baton->result) {
-        result = Nan::New<String>(baton->result->data(), baton->result->length()).ToLocalChecked();
+
+      Local<Value> argv[2];
+
+      if (baton->errstring[0]) {
+        argv[0] = Nan::Error(Nan::New<String>(baton->errstring).ToLocalChecked());
+        argv[1] = Nan::Undefined();
+      } else {
+        Local<Value> result = Nan::Undefined();
+        if (baton->result) {
+          result = Nan::New<String>(baton->result->data(), baton->result->length()).ToLocalChecked();
+        }
+        argv[0] = Nan::Undefined();
+        argv[1] = result;
       }
 
-      Local<Value> argv[] = {error, result};
-
-      DEBUG_LOG("call recognize callback");
+      DEBUG_LOG("call tokenize callback");
       Nan::TryCatch try_catch;
       baton->callback->Call(2, argv);
       if (try_catch.HasCaught()) {
@@ -223,13 +226,11 @@ void __eio_recognize_done(uv_work_t *req, int status) {
     }
   }
 
-  baton->destroy();
   delete baton;
   delete req;
 }
 
-NAN_METHOD(Tokenize) {
-  ENTER_METHOD(3);
+void ExtractParameters(Nan::NAN_METHOD_ARGS_TYPE &info, OcrBaton *baton) {
 
   Local<Object> buffer;
   unsigned char *data = NULL;
@@ -259,8 +260,6 @@ NAN_METHOD(Tokenize) {
   std::string *language = new std::string("eng");
   std::string *tessdata = new std::string("/usr/local/share/tessdata/");
   int psm = tesseract::PSM_AUTO;
-  int level = tesseract::RIL_TEXTLINE;
-  bool textOnly = true;
   int *rect = NULL;
   int **rules = NULL;
   unsigned int rules_count = 0;
@@ -284,16 +283,6 @@ NAN_METHOD(Tokenize) {
   Local<Value> psm_value = Nan::Get(options, Nan::New("psm").ToLocalChecked()).ToLocalChecked();
   if (psm_value->IsNumber()) {
     psm = (int) psm_value->ToInteger()->Value();
-  }
-
-  Local<Value> level_value = Nan::Get(options, Nan::New("level").ToLocalChecked()).ToLocalChecked();
-  if (level_value->IsNumber()) {
-    level = (int) level_value->ToInteger()->Value();
-  }
-
-  Local<Value> text_only_value = Nan::Get(options, Nan::New("textOnly").ToLocalChecked()).ToLocalChecked();
-  if (text_only_value->IsBoolean()) {
-    textOnly = text_only_value->ToBoolean()->Value();
   }
 
   Local<Value> box_value = Nan::Get(options, Nan::New("rect").ToLocalChecked()).ToLocalChecked();
@@ -337,19 +326,11 @@ NAN_METHOD(Tokenize) {
     }
   }
 
-
-  // ********************************************************************************************************
-
-  TokenizeBaton *baton = new TokenizeBaton();
-  strcpy(baton->errstring, "");
-
   baton->rect = rect;
 
   baton->language = language;
   baton->tessdata = tessdata;
   baton->psm = psm;
-  baton->level = level;
-  baton->textOnly = textOnly;
   baton->rules = rules;
   baton->rules_count = rules_count;
 
@@ -362,6 +343,36 @@ NAN_METHOD(Tokenize) {
   }
 
   baton->callback = new Nan::Callback(callback);
+}
+
+NAN_METHOD(Tokenize) {
+  ENTER_METHOD(3);
+
+  if (!info[1]->IsObject()) {
+    THROW_BAD_ARGS("Argument 1 must be a object");
+  }
+  Local<Object> options = info[1]->ToObject();
+
+  int level = tesseract::RIL_TEXTLINE;
+  bool textOnly = true;
+
+  Local<Value> level_value = Nan::Get(options, Nan::New("level").ToLocalChecked()).ToLocalChecked();
+  if (level_value->IsNumber()) {
+    level = (int) level_value->ToInteger()->Value();
+  }
+
+  Local<Value> text_only_value = Nan::Get(options, Nan::New("textOnly").ToLocalChecked()).ToLocalChecked();
+  if (text_only_value->IsBoolean()) {
+    textOnly = text_only_value->ToBoolean()->Value();
+  }
+
+  TokenizeBaton *baton = new TokenizeBaton();
+  strcpy(baton->errstring, "");
+
+  ExtractParameters(info, baton);
+
+  baton->level = level;
+  baton->textOnly = textOnly;
 
   uv_work_t *req = new uv_work_t;
   req->data = baton;
@@ -478,9 +489,7 @@ NAN_METHOD(Recognize) {
   // ********************************************************************************************************
 
   RecognizeBaton *baton = new RecognizeBaton();
-  memset(baton, 0, sizeof(RecognizeBaton));
 
-  baton->errcode = 0;
   baton->result = NULL;
   baton->rect = rect;
 
@@ -507,12 +516,6 @@ NAN_METHOD(Recognize) {
   uv_queue_work(uv_default_loop(), req, __eio_recognize, __eio_recognize_done);
 
   info.GetReturnValue().SetUndefined();
-}
-
-Local<Value> ocr_error(int code) {
-  Local<Value> e = Nan::Error(Nan::New<String>("Tessocr throws an error").ToLocalChecked());
-  e->ToObject()->Set(Nan::New<String>("code").ToLocalChecked(), Nan::New<Integer>(code));
-  return e;
 }
 
 bool rule_filter(int **rules, int rules_count, int lines, int line) {
