@@ -2,7 +2,7 @@
 
 [![NPM version][npm-image]][npm-url] [![Build Status][travis-image]][travis-url] [![Dependency Status][daviddm-image]][daviddm-url]
 
-> A C++ module for node providing OCR with tesseract and leptonica forked from [node-tesseract-native](https://github.com/mdelete/node-tesseract-native).
+> A C++ module for node providing OCR with tesseract and leptonica forked from [node-ocr-native](https://github.com/mdelete/node-ocr-native).
 
 ## Extra Features 
 

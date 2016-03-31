@@ -11,7 +11,7 @@ var tess = tessocr.tess();
 var fixture = fixtures[2];
 
 console.time('segment');
-tess.segment(fixture.image, function (err, result) {
+tess.segline(fixture.image, function (err, result) {
   if (err) throw err;
   console.log(result);
   console.timeEnd('segment');
