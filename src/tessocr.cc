@@ -465,13 +465,12 @@ void CalcRect(Area &target, Area &source, int width, int height) {
     x += w;
     w = abs(w);
   }
+  if (x < 0) x += width;
 
   if (h < 0) {
     y += h;
     h = abs(h);
   }
-
-  if (x < 0) x += width;
   if (y < 0) y += height;
 
   if (x < 0) {

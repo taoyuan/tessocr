@@ -3,13 +3,15 @@
  */
 
 var tessocr = require('..');
-var fixtures = require('./fixtures');
+var fixtures = require('../test/fixtures');
 
 var tess = tessocr.tess();
-var fixture = fixtures[0];
+var fixture = fixtures.hello_1;
 
 console.time('tokenize');
-tess.tokenize(fixture.image, {lang: fixture.lang, psm: 6, level: 2}, function (err, result) {
+tess.tokenize(fixture.image, {
+  language: fixture.lang, psm: 6, level: 2
+}, function (err, result) {
   console.log(result);
   console.timeEnd('tokenize');
 });

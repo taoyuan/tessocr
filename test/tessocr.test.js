@@ -4,17 +4,14 @@ var assert = require('chai').assert;
 var fs = require('fs');
 var path = require('path');
 var tessocr = require('..');
+var fixtures = require('../test/fixtures');
 
 var tess = tessocr.tess();
-var imageFile = path.join(__dirname, 'fixtures', 'hello_world.jpg');
-
-var options = {
-};
 
 describe('tessocr', function () {
 
-  it('should ocr image from file', function (done) {
-    tess.recognize(imageFile, options, function (err, result) {
+  it('should recognize image from file', function (done) {
+    tess.recognize(fixtures.hello_1.image, function (err, result) {
       if (err) return done(err);
       assert.equal(result, 'hello, world\n\n');
       console.log(result);
@@ -22,14 +19,62 @@ describe('tessocr', function () {
     });
   });
 
-  it('should ocr image from buffer', function (done) {
-    fs.readFile(imageFile, function (err, data) {
+  it('should recognize image from buffer', function (done) {
+    fs.readFile(fixtures.hello_1.image, function (err, data) {
       if (err) return done(err);
       tess.recognize(data, function (err, result) {
         if (err) return done(err);
         assert.equal(result, 'hello, world\n\n');
         done();
       });
+    });
+  });
+
+  it('should ocr image with segline', function (done) {
+    tess.ocr(fixtures.hello_1.image, {
+      segline: true
+    }, function (err, result) {
+      if (err) return done(err);
+      assert.equal(result, 'hello, world\n\n');
+      done();
+    });
+  });
+
+  it('should ocr image with rects', function (done) {
+    var fixture = fixtures.receipt_1;
+    tess.ocr(fixture.image, {
+      tessdata: fixtures.tessdata,
+      language: fixture.lang,
+      rects: [
+        [0, 50, 600, 40],
+        [0, 90, 600, 40]
+      ]
+    }, function (err, result) {
+      if (err) return done(err);
+      var text = result.join('');
+      assert.include(text, '日期');
+      assert.include(text, '单号');
+      done();
+    });
+  });
+
+  it('should ocr image with segline and rects', function (done) {
+    var fixture = fixtures.receipt_1;
+    tess.ocr(fixture.image, {
+      tessdata: fixtures.tessdata,
+      language: fixture.lang,
+      rects: [
+        [0, 50, 600, 80],
+        [0, 130, 600, 80]
+      ]
+    }, function (err, result) {
+      if (err) return done(err);
+      var text = result.join('');
+      assert.include(text, '日期');
+      assert.include(text, '单号');
+      assert.include(text, '店铺名称');
+      assert.include(text, '颜色');
+      done();
     });
   });
 });
