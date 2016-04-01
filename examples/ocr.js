@@ -14,15 +14,18 @@ async.series([
     console.time('ocr-segline-rects');
     tess.ocr(fixture.image, {
       tessdata: fixtures.tessdata,
-      language: fixture.lang, psm: 6, segline: true, rects: [
+      language: fixture.lang, psm: 6,
+      segline: true,
+      rects: [
         [0, 0, 600, 180],
         [0, -760, 600, 120]
       ]
     }, function (err, result) {
       if (err) throw err;
-      if (result) console.log(result.join(''));
+      if (result) console.log(result);
       // console.timeEnd('ocr');
       console.timeEnd('ocr-segline-rects');
+      console.log('------------------------------------------------------------');
       cb();
     });
   },
@@ -30,12 +33,30 @@ async.series([
     console.time('ocr-segline-all');
     tess.ocr(fixture.image, {
       tessdata: fixtures.tessdata,
-      language: fixture.lang, psm: 6, segline: true
+      language: fixture.lang,
+      psm: 6,
+      segline: true
     }, function (err, result) {
       if (err) throw err;
-      if (result) console.log(result.join(''));
+      if (result) console.log(result);
       // console.timeEnd('ocr');
       console.timeEnd('ocr-segline-all');
+      console.log('------------------------------------------------------------');
+      cb();
+    });
+  },
+  function (cb) {
+    console.time('ocr-all');
+    tess.ocr(fixture.image, {
+      tessdata: fixtures.tessdata,
+      language: fixture.lang,
+      psm: 6
+    }, function (err, result) {
+      if (err) throw err;
+      if (result) console.log(result);
+      // console.timeEnd('ocr');
+      console.timeEnd('ocr-all');
+      console.log('------------------------------------------------------------');
       cb();
     });
   }

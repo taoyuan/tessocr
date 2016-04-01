@@ -14,7 +14,7 @@ describe('tessocr', function () {
   it('should recognize image from file', function (done) {
     tess.recognize(fixtures.hello_1.image, function (err, result) {
       if (err) return done(err);
-      assert.equal(result, 'hello, world\n\n');
+      assert.equal(result, 'hello, world');
       done();
     });
   });
@@ -24,7 +24,7 @@ describe('tessocr', function () {
       if (err) return done(err);
       tess.recognize(data, function (err, result) {
         if (err) return done(err);
-        assert.equal(result, 'hello, world\n\n');
+        assert.equal(result, 'hello, world');
         done();
       });
     });
@@ -35,7 +35,7 @@ describe('tessocr', function () {
       segline: true
     }, function (err, result) {
       if (err) return done(err);
-      assert.equal(result, 'hello, world\n\n');
+      assert.equal(result, 'hello, world');
       done();
     });
   });
@@ -51,9 +51,8 @@ describe('tessocr', function () {
       ]
     }, function (err, result) {
       if (err) return done(err);
-      var text = result.join('');
-      assert.include(text, '日期');
-      assert.include(text, '单号');
+      assert.include(result, '日期');
+      assert.include(result, '单号');
       done();
     });
   });
@@ -69,11 +68,10 @@ describe('tessocr', function () {
       ]
     }, function (err, result) {
       if (err) return done(err);
-      var text = result.join('');
-      assert.include(text, '日期');
-      assert.include(text, '单号');
-      assert.include(text, '店铺名称');
-      assert.include(text, '颜色');
+      assert.include(result, '日期');
+      assert.include(result, '单号');
+      assert.include(result, '店铺名称');
+      assert.include(result, '颜色');
       done();
     });
   });
