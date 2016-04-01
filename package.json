@@ -1,6 +1,6 @@
 {
   "name": "tessocr",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "A c++ module for node providing OCR with tesseract and leptonica",
   "homepage": "",
   "author": {
@@ -29,17 +29,6 @@
   ],
   "devDependencies": {
     "chai": "^3.5.0",
-    "eslint": "^2.5.3",
-    "eslint-config-xo-space": "^0.11.0",
-    "gulp": "^3.9.1",
-    "gulp-coveralls": "^0.1.4",
-    "gulp-eslint": "^2.0.0",
-    "gulp-exclude-gitignore": "^1.0.0",
-    "gulp-istanbul": "^0.10.3",
-    "gulp-line-ending-corrector": "^1.0.1",
-    "gulp-mocha": "^2.2.0",
-    "gulp-nsp": "^2.3.1",
-    "gulp-plumber": "^1.1.0",
     "mocha": "^2.4.5"
   },
   "eslintConfig": {
@@ -53,7 +42,7 @@
     "ncmake": "ncmake -C 11 --build build",
     "install": "node-pre-gyp install --fallback-to-build",
     "rebuild": "node-pre-gyp rebuild --fallback-to-build",
-    "test": "gulp"
+    "test": "mocha"
   },
   "binary": {
     "module_name": "tessocr",

@@ -9,12 +9,12 @@ var fixtures = require('../test/fixtures');
 var tess = tessocr.tess();
 
 describe('tessocr', function () {
+  this.timeout(10000);
 
   it('should recognize image from file', function (done) {
     tess.recognize(fixtures.hello_1.image, function (err, result) {
       if (err) return done(err);
       assert.equal(result, 'hello, world\n\n');
-      console.log(result);
       done();
     });
   });
