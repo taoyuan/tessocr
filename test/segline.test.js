@@ -32,7 +32,7 @@ describe('segline', function () {
   it('should segline image with noises', function (done) {
     Jimp.read(fixtures.hello_1.image, function (err, image) {
       var segments = segline(image.bitmap.data, image.bitmap.width, image.bitmap.height);
-      console.log(segments);
+      // console.log(segments);
       assert.deepEqual([{x: 0, y: 208, w: 960, h: 136}], segments);
       done();
     });
