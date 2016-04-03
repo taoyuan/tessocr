@@ -59,7 +59,6 @@ struct OcrOptions {
   std::string *tessdata;
   int psm;
   std::list<Area *> *rects;
-  std::list<Range *> *ranges;
 
   virtual ~OcrOptions() {
     if (language) delete language;
@@ -70,18 +69,11 @@ struct OcrOptions {
       }
       delete rects;
     }
-    if (ranges) {
-      for (std::list<Range *>::iterator it = ranges->begin(); it != ranges->end(); ++it) {
-        delete *it;
-      }
-      delete ranges;
-    }
   }
 };
 
 struct TokenizeOptions : OcrOptions {
   // enable fast tokenization and using threshold as min white height
-  int threshold;
   int level;
   bool textOnly;
 };

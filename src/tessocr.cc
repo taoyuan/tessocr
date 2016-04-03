@@ -60,19 +60,13 @@ NAN_METHOD(Tokenize) {
   info.GetReturnValue().SetUndefined();
 }
 
-TokenizeOptions *ParseTokenizeOptions(const Local<Object>& options) {
-  TokenizeOptions * answer = new TokenizeOptions();
+TokenizeOptions *ParseTokenizeOptions(const Local<Object> &options) {
+  TokenizeOptions *answer = new TokenizeOptions();
 
   ParseOcrOptions(*answer, options);
 
-  int threshold = 0;
   int level = tesseract::RIL_TEXTLINE;
   bool textOnly = true;
-
-  Local<Value> dpi_value = Nan::Get(options, Nan::New("threshold").ToLocalChecked()).ToLocalChecked();
-  if (dpi_value->IsNumber()) {
-    threshold = (int) dpi_value->ToInteger()->Value();
-  }
 
   Local<Value> level_value = Nan::Get(options, Nan::New("level").ToLocalChecked()).ToLocalChecked();
   if (level_value->IsNumber()) {
@@ -84,7 +78,6 @@ TokenizeOptions *ParseTokenizeOptions(const Local<Object>& options) {
     textOnly = text_only_value->ToBoolean()->Value();
   }
 
-  answer->threshold = threshold;
   answer->level = level;
   answer->textOnly = textOnly;
 
@@ -137,7 +130,8 @@ void __eio_tokenize(uv_work_t *req) {
       Area rect;
       CalcRect(rect, **it, image->w, image->h);
 
-      DEBUG_LOG("Processing image (%d, %d) with rect (%d, %d, %d, %d)", image->w, image->h, rect.x, rect.y, rect.w, rect.h);
+      DEBUG_LOG("Processing image (%d, %d) with rect (%d, %d, %d, %d)", image->w, image->h, rect.x, rect.y, rect.w,
+                rect.h);
       api.SetRectangle(rect.x, rect.y, rect.w, rect.h);
 
       TessTokenize(api, *baton->options, baton->results);
@@ -157,14 +151,14 @@ void TessTokenize(tesseract::TessBaseAPI &api, TokenizeOptions &options, std::li
   DEBUG_LOG("Found %d image components.", boxes->n);
   for (int i = 0; i < boxes->n; i++) {
 //    if (RuleFilter(options.ranges, boxes->n, i)) {
-      BOX *box = boxaGetBox(boxes, i, L_CLONE);
-      TokenizeResult *item = new TokenizeResult();
-      item->x = box->x;
-      item->y = box->y;
-      item->w = box->w;
-      item->h = box->h;
-      item->confidence = api.MeanTextConf();
-      results.push_back(item);
+    BOX *box = boxaGetBox(boxes, i, L_CLONE);
+    TokenizeResult *item = new TokenizeResult();
+    item->x = box->x;
+    item->y = box->y;
+    item->w = box->w;
+    item->h = box->h;
+    item->confidence = api.MeanTextConf();
+    results.push_back(item);
 //    }
   }
 }
@@ -269,8 +263,8 @@ NAN_METHOD(Recognize) {
   info.GetReturnValue().SetUndefined();
 }
 
-RecognizeOptions *ParseRecognizeOptions(const Local<Object>& options) {
-  RecognizeOptions * answer = new RecognizeOptions();
+RecognizeOptions *ParseRecognizeOptions(const Local<Object> &options) {
+  RecognizeOptions *answer = new RecognizeOptions();
   ParseOcrOptions(*answer, options);
   return answer;
 }
@@ -368,18 +362,18 @@ void __eio_recognize_done(uv_work_t *req, int status) {
 }
 
 
-void ParseOcrOptions(OcrOptions &target, const Local<Object>& options) {
+void ParseOcrOptions(OcrOptions &target, const Local<Object> &options) {
   std::string *language = new std::string("eng");
   std::string *tessdata = new std::string("/usr/local/share/tessdata/");
   int psm = tesseract::PSM_AUTO;
   std::list<Area *> *rects = NULL;
-  std::list<Range *> *ranges = NULL;
 
   Local<Value> lang_value = Nan::Get(options, Nan::New("language").ToLocalChecked()).ToLocalChecked();
   if (lang_value->IsString()) {
     String::Utf8Value str(lang_value);
     if (str.length() > 0) {
-      language = new std::string(*str);
+      language->clear();
+      language->append(*str);
     }
   }
 
@@ -387,7 +381,8 @@ void ParseOcrOptions(OcrOptions &target, const Local<Object>& options) {
   if (tessdata_value->IsString()) {
     String::Utf8Value str(tessdata_value);
     if (str.length() < 4095) {
-      tessdata = new std::string(*str);
+      tessdata->clear();
+      tessdata->append(*str);
     }
   }
 
@@ -420,39 +415,13 @@ void ParseOcrOptions(OcrOptions &target, const Local<Object>& options) {
     }
   }
 
-//  Local<Value> ranges_value = Nan::Get(options, Nan::New("ranges").ToLocalChecked()).ToLocalChecked();
-//  if (ranges_value->IsArray()) {
-//    Handle<Object> ranges_object = ranges_value->ToObject();
-//    unsigned int len = ranges_object->Get(Nan::New("length").ToLocalChecked())->ToObject()->Uint32Value();
-//    ranges = new std::list<Range *>();
-//    INFO_LOG("Init ranges: %d", len);
-//    for (unsigned int i = 0; i < len; i++) {
-//      Range *range = NULL;
-//      Local<Value> range_value = ranges_object->Get(i);
-//      if (range_value->IsNumber()) {
-//        range = new Range(range_value->ToObject()->Int32Value());
-//      } else if (range_value->IsArray()) {
-//        Local<Object> obj = range_value->ToObject();
-//        unsigned int n = obj->Get(Nan::New("length").ToLocalChecked())->ToObject()->Uint32Value();
-//        if (n > 0) {
-//          range = new Range((int) obj->Get(0)->ToInteger()->Value());
-//        }
-//        if (n > 1) {
-//          range->to = (int) obj->Get(1)->ToInteger()->Value();
-//        }
-//      }
-//      if (range) {
-//        ranges->push_back(range);
-//        INFO_LOG("Range %d: (%d, %d)", i, range->from, range->to);
-//      }
-//    }
-//  }
-
-  target.rects = rects;
-  target.language = language;
   target.tessdata = tessdata;
+  target.language = language;
   target.psm = psm;
-  target.ranges = ranges;
+  target.rects = rects;
+
+//  INFO_LOG("Process with options: (tessdata: %s, language: %s, psm: %d, rects: %d)",
+//           tessdata->data(), language->data(), psm, rects ? (int) rects->size() : 0);
 }
 
 void CalcRect(Area &target, Area &source, int width, int height) {
@@ -501,30 +470,14 @@ void CalcRect(Area &target, Area &source, int width, int height) {
   target.h = h;
 }
 
-//bool RuleFilter(std::list<Range *> *ranges, int count, int line) {
-//  if (!ranges || !ranges->size()) return true;
-//
-//  if (!count || line >= count || line < 0) return false;
-//
-//  for (std::list<Range *>::iterator it = ranges->begin(); it != ranges->end(); ++it) {
-//    Range *range = *it;
-//    int from = range->from < 0 ? range->from + count: range->from;
-//    int to = range->to < 0 ? range->to + count : range->to;
-//    if ((line >= from && line <= to) || (line >= to && line <= from)) {
-//      return true;
-//    }
-//  }
-//
-//  return false;
-//}
-
 extern "C" {
 static void Initialize(Local<Object> target) {
   Nan::HandleScope scope;
   Nan::SetMethod(target, "tokenize", Tokenize);
   Nan::SetMethod(target, "recognize", Recognize);
 
-  Nan::Set(target, Nan::New<String>("tesseractVersion").ToLocalChecked(), Nan::New<String>(tesseract::TessBaseAPI::Version()).ToLocalChecked());
+  Nan::Set(target, Nan::New<String>("tesseractVersion").ToLocalChecked(),
+           Nan::New<String>(tesseract::TessBaseAPI::Version()).ToLocalChecked());
 }
 
 NODE_MODULE(tessocr, Initialize) ;
