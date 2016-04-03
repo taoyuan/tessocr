@@ -1,6 +1,6 @@
 {
   "name": "tessocr",
-  "version": "0.0.7",
+  "version": "0.1.0",
   "description": "A c++ module for node providing OCR with tesseract and leptonica",
   "homepage": "",
   "author": {
