@@ -13,15 +13,11 @@
     "ocr",
     "tesseract"
   ],
-  "publishConfig": {
-    "registry": "http://registry.npmjs.com"
-  },
   "dependencies": {
     "async": "^2.0.0-rc.2",
     "jimp": "^0.2.21",
     "lodash": "^4.7.0",
     "nan": "^2.2.1",
-    "node-cmake": "^1.1.0",
     "node-pre-gyp": "^0.6.25"
   },
   "bundledDependencies": [
@@ -29,7 +25,8 @@
   ],
   "devDependencies": {
     "chai": "^3.5.0",
-    "mocha": "^2.4.5"
+    "mocha": "^2.4.5",
+    "node-cmake": "^1.1.0"
   },
   "eslintConfig": {
     "extends": "xo-space",
@@ -39,9 +36,7 @@
   },
   "repository": "taoyuan/tessocr",
   "scripts": {
-    "ncmake": "ncmake -C 11 --build build",
     "install": "node-pre-gyp install --fallback-to-build",
-    "rebuild": "node-pre-gyp rebuild --fallback-to-build",
     "test": "mocha"
   },
   "binary": {
