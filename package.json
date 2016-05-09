@@ -14,11 +14,11 @@
     "tesseract"
   ],
   "dependencies": {
-    "async": "^2.0.0-rc.2",
-    "jimp": "^0.2.21",
-    "lodash": "^4.7.0",
-    "nan": "^2.2.1",
-    "node-pre-gyp": "^0.6.25"
+    "async": "^2.0.0-rc.4",
+    "jimp": "^0.2.24",
+    "lodash": "^4.12.0",
+    "nan": "^2.3.3",
+    "node-pre-gyp": "^0.6.28"
   },
   "bundledDependencies": [
     "node-pre-gyp"
@@ -26,7 +26,7 @@
   "devDependencies": {
     "chai": "^3.5.0",
     "mocha": "^2.4.5",
-    "node-cmake": "^1.1.0"
+    "node-cmake": "^1.2.0"
   },
   "eslintConfig": {
     "extends": "xo-space",

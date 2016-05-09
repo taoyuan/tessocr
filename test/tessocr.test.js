@@ -2,7 +2,6 @@
 
 var assert = require('chai').assert;
 var fs = require('fs');
-var path = require('path');
 var tessocr = require('..');
 var fixtures = require('../test/fixtures');
 
