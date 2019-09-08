@@ -14,18 +14,18 @@
     "tesseract"
   ],
   "dependencies": {
-    "async": "^2.1.4",
-    "jimp": "^0.2.27",
+    "async": "^3.1.0",
+    "jimp": "^0.8.0",
     "lodash": "^4.17.4",
     "nan": "^2.5.1",
-    "node-pre-gyp": "^0.6.32"
+    "node-pre-gyp": "^0.13.0"
   },
   "bundledDependencies": [
     "node-pre-gyp"
   ],
   "devDependencies": {
-    "chai": "^3.5.0",
-    "mocha": "^3.2.0",
+    "chai": "^4.2.0",
+    "mocha": "^6.2.0",
     "node-cmake": "^2.1.1"
   },
   "eslintConfig": {
