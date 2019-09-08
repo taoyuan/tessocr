@@ -1,5 +1,7 @@
 # tessocr
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/taoyuan/tessocr.svg)](https://greenkeeper.io/)
+
 [![NPM version][npm-image]][npm-url] [![Build Status][travis-image]][travis-url] [![Dependency Status][daviddm-image]][daviddm-url]
 
 > A C++ module for node providing OCR with tesseract and leptonica forked from [node-ocr-native](https://github.com/mdelete/node-ocr-native).
